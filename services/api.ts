@@ -19,8 +19,6 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
   const options: RequestInit = {
     method: config.method,
     headers: headers,
-    // Add mode: 'cors' explicitly, though it is default. 
-    // If the external API does not support CORS, this request will fail in the browser.
     mode: 'cors', 
   };
 
@@ -42,7 +40,14 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
   }
 
   try {
-    const res = await fetch(config.url, options);
+    // Handle CORS Proxy
+    // If useProxy is true, we wrap the URL.
+    // We use encodeURIComponent to ensure query parameters in the target URL don't confuse the proxy.
+    const targetUrl = config.useProxy 
+      ? `https://corsproxy.io/?${encodeURIComponent(config.url)}` 
+      : config.url;
+
+    const res = await fetch(targetUrl, options);
     const endTime = performance.now();
     const duration = Math.round(endTime - startTime);
 
@@ -76,7 +81,7 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
       statusText: 'Network Error',
       data: { 
         error: error.message, 
-        suggestion: 'This might be a CORS issue. If calling from a browser, the API must support Cross-Origin requests. Try using a CORS proxy or checking the API settings.' 
+        suggestion: 'Failed to fetch. This is likely a CORS issue. Ensure "Use CORS Proxy" is ENABLED in the settings above.' 
       },
       headers: {},
       duration: Math.round(endTime - startTime),

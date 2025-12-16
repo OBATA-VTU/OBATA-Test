@@ -10,6 +10,7 @@ export interface ApiConfig {
   method: HttpMethod;
   headers: KeyValuePair[];
   body?: string; // JSON string
+  useProxy?: boolean;
 }
 
 export interface ApiResponse {
