@@ -1,12 +1,13 @@
-import React, { useEffect, useRef } from 'react';
-import { Smartphone, Zap, Wifi, Tv, ShieldCheck, CreditCard, ArrowRight, Star, Clock, CheckCircle, Users, HelpCircle, ChevronDown, Award } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { Smartphone, Zap, Wifi, Tv, CheckCircle, ArrowRight, Star, Users, HelpCircle, ChevronDown } from 'lucide-react';
 import { Logo } from './Logo';
+import { PageView } from './Layout';
 
 interface LandingPageProps {
   onGetStarted: () => void;
+  onNavigate: (page: PageView) => void;
 }
 
-// Hook for scroll animations
 const useReveal = () => {
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -19,14 +20,12 @@ const useReveal = () => {
       },
       { threshold: 0.1 }
     );
-
     document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
-
     return () => observer.disconnect();
   }, []);
 };
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNavigate }) => {
   useReveal();
 
   return (
@@ -36,7 +35,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       <nav className="fixed w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onNavigate('LANDING')}>
               <Logo className="h-10 w-10" />
               <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-amber-400">
                 OBATA VTU
@@ -46,7 +45,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
               <a href="#services" className="hover:text-blue-400 transition-colors">Services</a>
               <a href="#features" className="hover:text-blue-400 transition-colors">Why Us</a>
               <a href="#testimonials" className="hover:text-blue-400 transition-colors">Reviews</a>
-              <a href="#faq" className="hover:text-blue-400 transition-colors">FAQ</a>
+              <button onClick={() => onNavigate('SUPPORT')} className="hover:text-blue-400 transition-colors">Support</button>
               <button 
                 onClick={onGetStarted}
                 className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-6 py-2.5 rounded-full transition-all hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] font-bold"
@@ -115,7 +114,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
 
           <div className="lg:w-1/2 relative reveal">
-             {/* Abstract Phone/App Mockup */}
              <div className="relative mx-auto w-full max-w-[500px]">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-amber-500 rounded-2xl blur opacity-30 animate-pulse"></div>
                 <img 
@@ -124,7 +122,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                   className="relative rounded-2xl shadow-2xl border border-slate-700 z-10 w-full object-cover h-[500px]"
                 />
                 
-                {/* Floating Cards */}
                 <div className="absolute -bottom-6 -left-6 bg-slate-900/90 backdrop-blur border border-slate-700 p-4 rounded-xl shadow-xl z-20 flex items-center space-x-3 animate-bounce-slow">
                    <div className="bg-green-500/20 p-2 rounded-full">
                       <CheckCircle className="w-6 h-6 text-green-500" />
@@ -274,22 +271,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
          </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-24 bg-slate-900/30">
-          <div className="max-w-7xl mx-auto px-4">
-              <div className="text-center mb-16 reveal">
-                  <h2 className="text-3xl md:text-4xl font-bold">Get Started in 3 Steps</h2>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                  <StepCard number="01" title="Create Account" desc="Sign up for free in less than 2 minutes. No paperwork required." />
-                  <StepCard number="02" title="Fund Wallet" desc="Transfer money to your dedicated wallet account via bank transfer." />
-                  <StepCard number="03" title="Start Vending" desc="Buy data, airtime, and pay bills instantly at wholesale prices." />
-              </div>
-          </div>
-      </section>
-
       {/* Testimonials */}
-      <section id="testimonials" className="py-24 bg-slate-950">
+      <section id="testimonials" className="py-24 bg-slate-900/30">
           <div className="max-w-7xl mx-auto px-4">
               <div className="text-center mb-16 reveal">
                   <h2 className="text-3xl md:text-4xl font-bold mb-4">What our users say</h2>
@@ -325,7 +308,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="py-20 bg-slate-900/30">
+      <section id="faq" className="py-20 bg-slate-950">
          <div className="max-w-3xl mx-auto px-4">
             <h2 className="text-3xl font-bold text-center mb-12">Frequently Asked Questions</h2>
             <div className="space-y-4">
@@ -363,7 +346,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                 <div className="col-span-1 md:col-span-1">
-                    <div className="flex items-center space-x-2 mb-6">
+                    <div className="flex items-center space-x-2 mb-6 cursor-pointer" onClick={() => onNavigate('LANDING')}>
                         <Logo className="h-8 w-8" showRing={false} />
                         <span className="text-xl font-bold text-white">OBATA VTU</span>
                     </div>
@@ -371,28 +354,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
                         The reliable VTU platform for all your digital needs. Fast, Secure, and Affordable. We keep you connected to the world.
                     </p>
                     <div className="flex space-x-4">
-                        <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"><Users className="w-5 h-5" /></div>
-                        <div className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"><HelpCircle className="w-5 h-5" /></div>
+                        <div onClick={() => onNavigate('SUPPORT')} className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"><Users className="w-5 h-5" /></div>
+                        <div onClick={() => onNavigate('SUPPORT')} className="w-10 h-10 rounded-full bg-slate-900 flex items-center justify-center text-slate-400 hover:bg-blue-600 hover:text-white transition-colors cursor-pointer"><HelpCircle className="w-5 h-5" /></div>
                     </div>
                 </div>
                 <div>
                     <h4 className="font-bold text-white mb-6">Quick Links</h4>
                     <ul className="space-y-4 text-slate-500 text-sm">
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">Buy Data Bundle</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">Airtime VTU</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">Pay Electric Bills</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">Cable TV Sub</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">Print Recharge Card</a></li>
+                        <li><button onClick={onGetStarted} className="hover:text-blue-400 transition-colors">Buy Data Bundle</button></li>
+                        <li><button onClick={onGetStarted} className="hover:text-blue-400 transition-colors">Airtime VTU</button></li>
+                        <li><button onClick={onGetStarted} className="hover:text-blue-400 transition-colors">Pay Electric Bills</button></li>
+                        <li><button onClick={onGetStarted} className="hover:text-blue-400 transition-colors">Cable TV Sub</button></li>
                     </ul>
                 </div>
                 <div>
                     <h4 className="font-bold text-white mb-6">Company</h4>
                     <ul className="space-y-4 text-slate-500 text-sm">
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">About Us</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">Contact Support</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">Terms of Service</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">Privacy Policy</a></li>
-                        <li><a href="#" className="hover:text-blue-400 transition-colors">API Documentation</a></li>
+                        <li><button onClick={() => onNavigate('ABOUT')} className="hover:text-blue-400 transition-colors">About Us</button></li>
+                        <li><button onClick={() => onNavigate('SUPPORT')} className="hover:text-blue-400 transition-colors">Contact Support</button></li>
+                        <li><button onClick={() => onNavigate('TERMS')} className="hover:text-blue-400 transition-colors">Terms of Service</button></li>
+                        <li><button onClick={() => onNavigate('PRIVACY')} className="hover:text-blue-400 transition-colors">Privacy Policy</button></li>
                     </ul>
                 </div>
                  <div>
@@ -420,7 +401,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   );
 };
 
-// Helper Components
 const ServiceCard = ({ icon, title, desc, delay }: { icon: React.ReactNode, title: string, desc: string, delay: string }) => (
     <div className="bg-slate-900/50 p-8 rounded-2xl border border-slate-800 hover:border-blue-500/50 transition-all hover:bg-slate-900 group reveal" style={{ transitionDelay: `${delay}ms` }}>
         <div className="mb-6 bg-slate-950 w-16 h-16 rounded-2xl flex items-center justify-center border border-slate-800 group-hover:scale-110 transition-transform shadow-lg">

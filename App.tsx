@@ -1,22 +1,27 @@
 import React, { useState } from 'react';
-import { Layout } from './components/Layout';
+import { Layout, PageView } from './components/Layout';
 import { ConnectionForm } from './components/ConnectionForm';
 import { PaystackForm } from './components/PaystackForm';
 import { ImgBBForm } from './components/ImgBBForm';
 import { LandingPage } from './components/LandingPage';
 import { ResponseDisplay } from './components/ResponseDisplay';
+import { PrivacyPolicy, TermsOfService, AboutUs, ContactSupport } from './components/StaticPages';
 import { executeApiRequest } from './services/api';
 import { ApiConfig, ApiResponse } from './types';
-import { Activity, Radio, Wallet, CreditCard, Image as ImageIcon, ArrowLeft } from 'lucide-react';
+import { Activity, Wallet, CreditCard, Image as ImageIcon, ArrowLeft } from 'lucide-react';
 
-type ViewState = 'LANDING' | 'DASHBOARD';
-type TabType = 'VTU' | 'WALLET' | 'UPLOAD'; // Renamed to be generic
+type TabType = 'VTU' | 'WALLET' | 'UPLOAD';
 
 const App: React.FC = () => {
-  const [view, setView] = useState<ViewState>('LANDING');
+  const [view, setView] = useState<PageView>('LANDING');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<ApiResponse | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('VTU');
+
+  const handleNavigate = (page: PageView) => {
+    setView(page);
+    window.scrollTo(0, 0);
+  };
 
   const handleApiRequest = async (config: ApiConfig) => {
     setLoading(true);
@@ -39,19 +44,43 @@ const App: React.FC = () => {
     }
   };
 
+  // 1. Landing Page
   if (view === 'LANDING') {
-    return <LandingPage onGetStarted={() => setView('DASHBOARD')} />;
+    return <LandingPage onGetStarted={() => handleNavigate('DASHBOARD')} onNavigate={handleNavigate} />;
   }
 
-  // Dashboard View
+  // 2. Static Pages (Wrapped in Layout)
+  if (['PRIVACY', 'TERMS', 'ABOUT', 'SUPPORT'].includes(view)) {
+    return (
+      <Layout onNavigate={handleNavigate}>
+         <div className="pt-8">
+           <div className="mb-6 max-w-7xl mx-auto">
+             <button 
+                  onClick={() => handleNavigate('LANDING')}
+                  className="flex items-center text-slate-400 hover:text-white transition-colors"
+              >
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
+              </button>
+           </div>
+           
+           {view === 'PRIVACY' && <PrivacyPolicy />}
+           {view === 'TERMS' && <TermsOfService />}
+           {view === 'ABOUT' && <AboutUs />}
+           {view === 'SUPPORT' && <ContactSupport />}
+         </div>
+      </Layout>
+    );
+  }
+
+  // 3. Dashboard View (Wrapped in Layout)
   return (
-    <Layout>
+    <Layout onNavigate={handleNavigate} isDashboard={true}>
       <div className="max-w-6xl mx-auto">
         
         {/* Back to Home Navigation */}
         <div className="mb-6 flex items-center justify-between">
             <button 
-                onClick={() => setView('LANDING')}
+                onClick={() => handleNavigate('LANDING')}
                 className="flex items-center text-slate-400 hover:text-white transition-colors"
             >
                 <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
