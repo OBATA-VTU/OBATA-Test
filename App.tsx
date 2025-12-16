@@ -8,11 +8,12 @@ import { WalletPage } from './components/WalletPage';
 import { SavingsPage } from './components/SavingsPage';
 import { HistoryPage } from './components/HistoryPage';
 import { ResellerPage, RewardsPage, ApiDocsPage, ProfilePage } from './components/SecondaryPages';
+import { AdminPanel } from './components/AdminPanel'; // New Import
 import { PrivacyPolicy, TermsOfService, AboutUs, ContactSupport } from './components/StaticPages';
 import { AuthPage } from './components/AuthPage';
 import { PaystackForm } from './components/PaystackForm';
 import { ServicesPage } from './components/ServicesPage';
-import { ReceiptModal } from './components/ReceiptModal'; // New Import
+import { ReceiptModal } from './components/ReceiptModal';
 import { executeApiRequest } from './services/api';
 import { ApiConfig, ApiResponse } from './types';
 import { Activity, ArrowLeft, Loader2, Zap } from 'lucide-react';
@@ -27,7 +28,7 @@ const AuthenticatedApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('OVERVIEW');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<ApiResponse | null>(null);
-  const [isReceiptOpen, setIsReceiptOpen] = useState(false); // Modal State
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false);
 
   // Reseller Upgrade Modal State
   const [showResellerModal, setShowResellerModal] = useState(false);
@@ -143,7 +144,7 @@ const AuthenticatedApp: React.FC = () => {
 
   // 1. Landing Page
   if (view === 'LANDING') {
-    return <LandingPage onGetStarted={() => currentUser ? setView('DASHBOARD') : setView('DASHBOARD')} onNavigate={handleNavigate} />;
+    return <LandingPage onGetStarted={() => currentUser ? setView('DASHBOARD') : setView('DASHBOARD')} onNavigate={handleNavigate} onDashboardNavigate={handleDashboardNavigate} />;
   }
 
   // 2. Static Pages
@@ -238,10 +239,11 @@ const AuthenticatedApp: React.FC = () => {
         {activeTab === 'WALLET' && <WalletPage onSubmit={handleApiRequest} isLoading={loading} />}
         {activeTab === 'SAVINGS' && <SavingsPage />}
         {activeTab === 'HISTORY' && <HistoryPage />}
-        {activeTab === 'RESELLER' && <ResellerPage />}
+        {activeTab === 'RESELLER' && <ResellerPage onTriggerUpgrade={() => setShowResellerModal(true)} />}
         {activeTab === 'REWARDS' && <RewardsPage />}
         {activeTab === 'API' && <ApiDocsPage />}
         {activeTab === 'PROFILE' && <ProfilePage />}
+        {activeTab === 'ADMIN' && userProfile?.isAdmin && <AdminPanel />}
         
       </div>
     </Layout>

@@ -1,11 +1,13 @@
 import React, { useEffect } from 'react';
-import { Smartphone, Zap, Wifi, Tv, CheckCircle, ArrowRight, Star, Users, HelpCircle, ChevronDown } from 'lucide-react';
+import { Smartphone, Zap, Wifi, Tv, CheckCircle, ArrowRight, Star, Users, HelpCircle, ChevronDown, CreditCard, ShieldCheck, PlayCircle, BarChart3, LogIn } from 'lucide-react';
 import { Logo } from './Logo';
-import { PageView } from './Layout';
+import { PageView, DashboardTab } from './Layout';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LandingPageProps {
   onGetStarted: () => void;
   onNavigate: (page: PageView) => void;
+  onDashboardNavigate?: (tab: DashboardTab) => void;
 }
 
 const useReveal = () => {
@@ -25,8 +27,27 @@ const useReveal = () => {
   }, []);
 };
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNavigate }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNavigate, onDashboardNavigate }) => {
   useReveal();
+  const { currentUser, userProfile } = useAuth();
+
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const navigateToServices = () => {
+    if (currentUser) {
+      onNavigate('DASHBOARD');
+      if (onDashboardNavigate) {
+        onDashboardNavigate('SERVICES');
+      }
+    } else {
+      onGetStarted();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white overflow-hidden font-sans selection:bg-blue-500 selection:text-white">
@@ -41,23 +62,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
                 OBATA VTU
               </span>
             </div>
+            
             <div className="hidden md:flex items-center space-x-8 text-sm font-semibold text-slate-300">
-              <a href="#services" className="hover:text-blue-400 transition-colors">Services</a>
-              <a href="#features" className="hover:text-blue-400 transition-colors">Why Us</a>
-              <a href="#testimonials" className="hover:text-blue-400 transition-colors">Reviews</a>
+              <button onClick={() => scrollToSection('pricing')} className="hover:text-blue-400 transition-colors">Prices</button>
+              <button onClick={() => scrollToSection('features')} className="hover:text-blue-400 transition-colors">Features</button>
+              <button onClick={() => scrollToSection('how-it-works')} className="hover:text-blue-400 transition-colors">How it Works</button>
               <button onClick={() => onNavigate('SUPPORT')} className="hover:text-blue-400 transition-colors">Support</button>
-              <button 
-                onClick={onGetStarted}
-                className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-6 py-2.5 rounded-full transition-all hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] font-bold"
-              >
-                Login Account
-              </button>
+              
+              {currentUser ? (
+                 <button 
+                    onClick={() => onNavigate('DASHBOARD')}
+                    className="flex items-center bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-full transition-all hover:shadow-lg font-bold border border-emerald-500/50"
+                  >
+                    <Zap className="w-4 h-4 mr-2 fill-current" /> Dashboard
+                  </button>
+              ) : (
+                  <button 
+                    onClick={onGetStarted}
+                    className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white px-6 py-2.5 rounded-full transition-all hover:shadow-[0_0_20px_rgba(37,99,235,0.3)] font-bold flex items-center"
+                  >
+                    <LogIn className="w-4 h-4 mr-2" /> Login
+                  </button>
+              )}
             </div>
              <button 
-                onClick={onGetStarted}
+                onClick={currentUser ? () => onNavigate('DASHBOARD') : onGetStarted}
                 className="md:hidden bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-bold"
               >
-                Get Started
+                {currentUser ? 'Dashboard' : 'Login'}
               </button>
           </div>
         </div>
@@ -71,13 +103,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
         
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
           <div className="lg:w-1/2 text-center lg:text-left z-10 reveal">
-             <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-900/30 border border-blue-500/30 text-blue-300 text-sm font-semibold mb-8 animate-fade-in-up">
-                <span className="flex h-2 w-2 relative mr-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
-                The #1 VTU Platform in Nigeria
-             </div>
+             
+             {currentUser ? (
+                 <div className="inline-flex items-center px-4 py-2 rounded-full bg-emerald-900/30 border border-emerald-500/30 text-emerald-300 text-sm font-semibold mb-8 animate-fade-in-up">
+                    <span className="relative flex h-2 w-2 mr-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    Welcome back, {userProfile?.username || 'User'}!
+                 </div>
+             ) : (
+                 <div className="inline-flex items-center px-4 py-2 rounded-full bg-blue-900/30 border border-blue-500/30 text-blue-300 text-sm font-semibold mb-8 animate-fade-in-up">
+                    <span className="flex h-2 w-2 relative mr-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                    </span>
+                    The #1 VTU Platform in Nigeria
+                 </div>
+             )}
+
             <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-[1.1]">
               The Smarter Way to <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-200 to-amber-300">
@@ -88,15 +132,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
               Stop overpaying for data. Get instant SME data, airtime, and utility bill payments at the cheapest rates in the market. 
               <span className="block mt-2 text-slate-300 font-semibold">Fast. Secure. Automated.</span>
             </p>
+            
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
               <button 
-                onClick={onGetStarted}
+                onClick={currentUser ? () => onNavigate('DASHBOARD') : onGetStarted}
                 className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg transition-all hover:-translate-y-1 shadow-xl shadow-blue-600/30 flex items-center justify-center"
               >
-                Create Free Account <ArrowRight className="ml-2 w-5 h-5" />
+                {currentUser ? (
+                    <>Go to Dashboard <ArrowRight className="ml-2 w-5 h-5" /></>
+                ) : (
+                    <>Create Free Account <ArrowRight className="ml-2 w-5 h-5" /></>
+                )}
               </button>
               <button 
-                 onClick={onGetStarted}
+                 onClick={() => scrollToSection('pricing')}
                  className="w-full sm:w-auto px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg transition-all border border-slate-700 hover:border-blue-500/50"
               >
                 View Price List
@@ -105,9 +154,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
             
             <div className="mt-10 flex items-center justify-center lg:justify-start space-x-4 text-sm text-slate-500">
                <div className="flex -space-x-2">
-                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64" alt="" />
-                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64" alt="" />
-                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=64&h=64" alt="" />
+                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 grayscale" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64" alt="" />
+                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 grayscale" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64" alt="" />
+                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 grayscale" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=64&h=64" alt="" />
                </div>
                <p>Trusted by <span className="text-white font-bold">5,000+</span> vendors</p>
             </div>
@@ -116,10 +165,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
           <div className="lg:w-1/2 relative reveal">
              <div className="relative mx-auto w-full max-w-[500px]">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-amber-500 rounded-2xl blur opacity-30 animate-pulse"></div>
+                {/* Changed Image to be more Relevant */}
                 <img 
-                  src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?auto=format&fit=crop&w=1000&q=80" 
-                  alt="Happy user paying bills" 
-                  className="relative rounded-2xl shadow-2xl border border-slate-700 z-10 w-full object-cover h-[500px]"
+                  src="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&w=1000&q=80" 
+                  alt="Seamless Mobile Payments" 
+                  className="relative rounded-2xl shadow-2xl border border-slate-700 z-10 w-full object-cover h-[550px]"
                 />
                 
                 <div className="absolute -bottom-6 -left-6 bg-slate-900/90 backdrop-blur border border-slate-700 p-4 rounded-xl shadow-xl z-20 flex items-center space-x-3 animate-bounce-slow">
@@ -146,16 +196,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
         </div>
       </section>
 
-      {/* Partners / Logos */}
+      {/* Partners / Logos - REAL LOGOS */}
       <section className="py-10 border-y border-white/5 bg-slate-900/50">
          <div className="max-w-7xl mx-auto px-4 overflow-hidden">
-            <p className="text-center text-sm font-semibold text-slate-500 uppercase tracking-widest mb-6">Powered by Industry Leaders</p>
-            <div className="flex flex-wrap justify-center gap-8 md:gap-16 opacity-50 grayscale hover:grayscale-0 transition-all duration-500">
-               <span className="text-xl font-bold text-white flex items-center"><span className="text-yellow-400 text-3xl mr-1">MTN</span></span>
-               <span className="text-xl font-bold text-white flex items-center"><span className="text-red-500 text-3xl mr-1">airtel</span></span>
-               <span className="text-xl font-bold text-white flex items-center"><span className="text-green-500 text-3xl mr-1">glo</span></span>
-               <span className="text-xl font-bold text-white flex items-center"><span className="text-green-800 text-3xl mr-1">9mobile</span></span>
-               <span className="text-xl font-bold text-white flex items-center"><span className="text-blue-500 text-3xl mr-1">DSTV</span></span>
+            <p className="text-center text-sm font-semibold text-slate-500 uppercase tracking-widest mb-6">Supported Networks</p>
+            <div className="flex flex-wrap justify-center gap-12 items-center opacity-70 grayscale hover:grayscale-0 transition-all duration-500">
+               <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/93/New-mtn-logo.jpg/800px-New-mtn-logo.jpg" alt="MTN" className="h-12 w-auto rounded-lg" />
+               <img src="https://upload.wikimedia.org/wikipedia/commons/b/bb/Airtel_logo_logotype.png" alt="Airtel" className="h-10 w-auto" />
+               <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Glo_button.png/440px-Glo_button.png" alt="Glo" className="h-12 w-auto" />
+               <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/9mobile_Logo.svg/1200px-9mobile_Logo.svg.png" alt="9mobile" className="h-8 w-auto bg-white p-1 rounded" />
+               <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/22/DStv_Logo_2012.svg/1200px-DStv_Logo_2012.svg.png" alt="DSTV" className="h-8 w-auto" />
             </div>
          </div>
       </section>
@@ -197,17 +247,104 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
         </div>
       </section>
 
-      {/* Feature Split Section 1 */}
+      {/* How It Works Section (New) */}
+      <section id="how-it-works" className="py-20 bg-slate-900 border-y border-slate-800">
+         <div className="max-w-7xl mx-auto px-4">
+             <div className="text-center mb-16">
+                 <h2 className="text-3xl font-bold text-white mb-4">How it Works</h2>
+                 <p className="text-slate-400">Get started in 3 simple steps</p>
+             </div>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-12 text-center">
+                 <div className="relative">
+                     <div className="w-20 h-20 mx-auto bg-blue-600 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-blue-600/30 mb-6">1</div>
+                     <h3 className="text-xl font-bold text-white mb-2">Create Account</h3>
+                     <p className="text-slate-400 text-sm">Sign up in seconds. It's free and easy to get started.</p>
+                 </div>
+                 <div className="relative">
+                     <div className="absolute top-10 left-0 w-full h-1 bg-slate-800 -z-10 hidden md:block"></div>
+                     <div className="w-20 h-20 mx-auto bg-amber-500 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-amber-500/30 mb-6">2</div>
+                     <h3 className="text-xl font-bold text-white mb-2">Fund Wallet</h3>
+                     <p className="text-slate-400 text-sm">Transfer money to your dedicated wallet account number.</p>
+                 </div>
+                 <div className="relative">
+                     <div className="w-20 h-20 mx-auto bg-emerald-500 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-emerald-500/30 mb-6">3</div>
+                     <h3 className="text-xl font-bold text-white mb-2">Buy & Enjoy</h3>
+                     <p className="text-slate-400 text-sm">Purchase data or airtime and get value instantly.</p>
+                 </div>
+             </div>
+         </div>
+      </section>
+
+      {/* Pricing Table (New) */}
+      <section id="pricing" className="py-24 bg-slate-950">
+          <div className="max-w-5xl mx-auto px-4">
+              <div className="text-center mb-12">
+                  <h2 className="text-3xl font-bold text-white mb-4">Unbeatable Prices</h2>
+                  <p className="text-slate-400">See why 10,000+ vendors choose us.</p>
+              </div>
+              <div className="overflow-x-auto bg-slate-900 rounded-2xl border border-slate-800 shadow-2xl">
+                  <table className="w-full text-left">
+                      <thead>
+                          <tr className="bg-slate-950 text-slate-400 border-b border-slate-800">
+                              <th className="p-6 font-medium">Network</th>
+                              <th className="p-6 font-medium">Plan Size</th>
+                              <th className="p-6 font-medium">Validity</th>
+                              <th className="p-6 font-medium text-emerald-400">Smart Earner</th>
+                              <th className="p-6 font-medium text-amber-500">Reseller</th>
+                          </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 text-slate-300">
+                          <tr className="hover:bg-slate-800/50">
+                              <td className="p-6 font-bold text-yellow-400">MTN SME</td>
+                              <td className="p-6">1.0 GB</td>
+                              <td className="p-6">30 Days</td>
+                              <td className="p-6">₦250</td>
+                              <td className="p-6 font-bold text-amber-500">₦215</td>
+                          </tr>
+                          <tr className="hover:bg-slate-800/50">
+                              <td className="p-6 font-bold text-red-500">AIRTEL CG</td>
+                              <td className="p-6">1.0 GB</td>
+                              <td className="p-6">30 Days</td>
+                              <td className="p-6">₦240</td>
+                              <td className="p-6 font-bold text-amber-500">₦210</td>
+                          </tr>
+                          <tr className="hover:bg-slate-800/50">
+                              <td className="p-6 font-bold text-green-500">GLO CG</td>
+                              <td className="p-6">1.0 GB</td>
+                              <td className="p-6">30 Days</td>
+                              <td className="p-6">₦230</td>
+                              <td className="p-6 font-bold text-amber-500">₦200</td>
+                          </tr>
+                          <tr className="hover:bg-slate-800/50">
+                              <td className="p-6 font-bold text-green-700">9MOBILE</td>
+                              <td className="p-6">1.0 GB</td>
+                              <td className="p-6">30 Days</td>
+                              <td className="p-6">₦200</td>
+                              <td className="p-6 font-bold text-amber-500">₦180</td>
+                          </tr>
+                      </tbody>
+                  </table>
+              </div>
+              <div className="mt-8 text-center">
+                  <button onClick={onGetStarted} className="text-blue-500 hover:text-blue-400 font-bold flex items-center justify-center mx-auto">
+                      View Full Price List <ArrowRight className="w-4 h-4 ml-2" />
+                  </button>
+              </div>
+          </div>
+      </section>
+
+      {/* Feature Split Section 1 - Corrected Image */}
       <section id="features" className="py-24 bg-slate-900/30 overflow-hidden">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col lg:flex-row items-center gap-16">
                <div className="lg:w-1/2 reveal">
                   <div className="relative">
                       <div className="absolute inset-0 bg-blue-600 rounded-3xl rotate-3 opacity-20"></div>
+                      {/* Changed to Server/Security Image */}
                       <img 
-                          src="https://images.unsplash.com/photo-1614680376593-902f74cf0d41?auto=format&fit=crop&w=800&q=80" 
-                          alt="Secure Analytics" 
-                          className="relative rounded-3xl shadow-2xl border border-slate-700 hover:scale-[1.02] transition-transform duration-500"
+                          src="https://images.unsplash.com/photo-1558494949-ef526b01201b?auto=format&fit=crop&w=800&q=80" 
+                          alt="Secure Infrastructure" 
+                          className="relative rounded-3xl shadow-2xl border border-slate-700 hover:scale-[1.02] transition-transform duration-500 h-[400px] w-full object-cover"
                       />
                   </div>
                </div>
@@ -236,17 +373,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
          </div>
       </section>
 
-      {/* Feature Split Section 2 */}
+      {/* Feature Split Section 2 - Corrected Image */}
       <section className="py-24 bg-slate-950">
          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col lg:flex-row-reverse items-center gap-16">
                <div className="lg:w-1/2 reveal">
                   <div className="relative">
                       <div className="absolute inset-0 bg-amber-500 rounded-3xl -rotate-3 opacity-10"></div>
+                      {/* Changed to Fiber Optic / Speed Image */}
                        <img 
-                          src="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&w=800&q=80" 
+                          src="https://images.unsplash.com/photo-1520692793134-29e1eb199738?q=80&w=2070&auto=format&fit=crop" 
                           alt="Fast Transactions" 
-                          className="relative rounded-3xl shadow-2xl border border-slate-700 hover:scale-[1.02] transition-transform duration-500"
+                          className="relative rounded-3xl shadow-2xl border border-slate-700 hover:scale-[1.02] transition-transform duration-500 h-[400px] w-full object-cover"
                       />
                   </div>
                </div>
@@ -361,10 +499,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
                 <div>
                     <h4 className="font-bold text-white mb-6">Quick Links</h4>
                     <ul className="space-y-4 text-slate-500 text-sm">
-                        <li><button onClick={onGetStarted} className="hover:text-blue-400 transition-colors">Buy Data Bundle</button></li>
-                        <li><button onClick={onGetStarted} className="hover:text-blue-400 transition-colors">Airtime VTU</button></li>
-                        <li><button onClick={onGetStarted} className="hover:text-blue-400 transition-colors">Pay Electric Bills</button></li>
-                        <li><button onClick={onGetStarted} className="hover:text-blue-400 transition-colors">Cable TV Sub</button></li>
+                        <li><button onClick={navigateToServices} className="hover:text-blue-400 transition-colors">Buy Data Bundle</button></li>
+                        <li><button onClick={navigateToServices} className="hover:text-blue-400 transition-colors">Airtime VTU</button></li>
+                        <li><button onClick={navigateToServices} className="hover:text-blue-400 transition-colors">Pay Electric Bills</button></li>
+                        <li><button onClick={navigateToServices} className="hover:text-blue-400 transition-colors">Cable TV Sub</button></li>
                     </ul>
                 </div>
                 <div>
@@ -408,16 +546,6 @@ const ServiceCard = ({ icon, title, desc, delay }: { icon: React.ReactNode, titl
         </div>
         <h3 className="text-xl font-bold mb-3 text-white group-hover:text-blue-400 transition-colors">{title}</h3>
         <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-    </div>
-);
-
-const StepCard = ({ number, title, desc }: { number: string, title: string, desc: string }) => (
-    <div className="relative p-8 rounded-2xl bg-slate-800/50 border border-slate-700 hover:-translate-y-2 transition-transform duration-300 reveal">
-        <div className="absolute -top-6 left-8 text-6xl font-black text-slate-800 select-none z-0 opacity-50">{number}</div>
-        <div className="relative z-10">
-            <h3 className="text-xl font-bold text-white mb-3 mt-4">{title}</h3>
-            <p className="text-slate-400 text-sm">{desc}</p>
-        </div>
     </div>
 );
 

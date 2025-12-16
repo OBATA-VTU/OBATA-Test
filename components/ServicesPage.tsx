@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Smartphone, Wifi, Tv, Zap, GraduationCap, X, ArrowLeft } from 'lucide-react';
+import { Smartphone, Wifi, Tv, Zap, GraduationCap, ArrowLeft } from 'lucide-react';
 import { ConnectionForm } from './ConnectionForm';
 import { ApiConfig } from '../types';
 

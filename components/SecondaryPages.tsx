@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { CheckCircle, Zap, Gift, Copy, User, Lock, Mail, Code, Terminal, Key, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export const ResellerPage: React.FC = () => {
+interface ResellerPageProps {
+    onTriggerUpgrade?: () => void;
+}
+
+export const ResellerPage: React.FC<ResellerPageProps> = ({ onTriggerUpgrade }) => {
   const { userProfile } = useAuth();
   
   if (userProfile?.isReseller) {
@@ -34,7 +38,10 @@ export const ResellerPage: React.FC = () => {
               <p className="text-orange-100 max-w-xl mx-auto text-lg mb-8">
                   Unlock wholesale prices and earn huge profits. Upgrade your account today for a one-time fee of <span className="font-bold text-white">₦1,000</span>.
               </p>
-              <button className="bg-white text-orange-700 font-bold px-8 py-4 rounded-xl shadow-xl hover:bg-orange-50 transition-transform hover:scale-105">
+              <button 
+                onClick={onTriggerUpgrade}
+                className="bg-white text-orange-700 font-bold px-8 py-4 rounded-xl shadow-xl hover:bg-orange-50 transition-transform hover:scale-105"
+              >
                   Upgrade Now - ₦1,000
               </button>
           </div>

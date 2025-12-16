@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Loader2 } from 'lucide-react';
+import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -9,11 +9,13 @@ export const HistoryPage: React.FC = () => {
   const [filter, setFilter] = useState('ALL');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [indexErrorLink, setIndexErrorLink] = useState<string | null>(null);
 
   useEffect(() => {
       const fetchTransactions = async () => {
           if (!currentUser) return;
           try {
+              // This Query requires a Composite Index in Firestore
               const q = query(
                   collection(db, 'transactions'),
                   where('userId', '==', currentUser.uid),
@@ -23,8 +25,18 @@ export const HistoryPage: React.FC = () => {
               const snapshot = await getDocs(q);
               const txns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
               setTransactions(txns);
-          } catch (error) {
+          } catch (error: any) {
               console.error("Error fetching history", error);
+              
+              // Handle Missing Index Error Specific to Firebase
+              if (error.code === 'failed-precondition' && error.message.includes('index')) {
+                  console.warn("MISSING INDEX: Click the link below to create it in Firebase Console:");
+                  const match = error.message.match(/https:\/\/console\.firebase\.google\.com\/[^\s]*/);
+                  if (match) {
+                      console.log(match[0]);
+                      setIndexErrorLink(match[0]);
+                  }
+              }
               setTransactions([]);
           } finally {
               setIsLoading(false);
@@ -43,9 +55,19 @@ export const HistoryPage: React.FC = () => {
                 <input type="text" placeholder="Search ID..." className="bg-slate-900 border border-slate-800 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:border-blue-500" />
              </div>
              <button className="bg-slate-800 p-2 rounded-lg text-slate-400 hover:text-white"><Filter className="w-5 h-5" /></button>
-             <button className="bg-slate-800 p-2 rounded-lg text-slate-400 hover:text-white"><Download className="w-5 h-5" /></button>
           </div>
        </div>
+       
+       {indexErrorLink && (
+           <div className="bg-amber-900/20 border border-amber-500/30 p-4 rounded-xl flex items-start space-x-3 text-amber-200 text-sm">
+               <AlertCircle className="w-5 h-5 flex-shrink-0" />
+               <div>
+                   <p className="font-bold">System Maintenance Required</p>
+                   <p className="mb-2">The transaction history index is being built. If you are the developer, <a href={indexErrorLink} target="_blank" rel="noreferrer" className="underline text-amber-400 font-bold">click here</a> to create the index.</p>
+                   <p className="text-xs opacity-70">If you are a user, please check back in 5 minutes.</p>
+               </div>
+           </div>
+       )}
 
        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl min-h-[300px]">
           {isLoading ? (
@@ -91,9 +113,11 @@ export const HistoryPage: React.FC = () => {
              </table>
           </div>
           )}
-          <div className="p-4 border-t border-slate-800 flex justify-center">
-             <button className="text-sm text-blue-500 hover:text-blue-400 font-medium">Load More Records</button>
-          </div>
+          {transactions.length > 0 && (
+            <div className="p-4 border-t border-slate-800 flex justify-center">
+                <button className="text-sm text-blue-500 hover:text-blue-400 font-medium">Load More Records</button>
+            </div>
+          )}
        </div>
     </div>
   );

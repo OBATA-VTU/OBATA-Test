@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Smartphone, Zap, Tv, LogIn, ArrowRight, LayoutDashboard, Wallet, PiggyBank, History, Award, Code, User, Menu, X, Bell, LogOut } from 'lucide-react';
+import { Smartphone, Zap, Tv, LogIn, ArrowRight, LayoutDashboard, Wallet, PiggyBank, History, Award, Code, User, Menu, X, Bell, LogOut, Lock } from 'lucide-react';
 import { Logo } from './Logo';
 import { useAuth } from '../contexts/AuthContext';
 import { signOut } from 'firebase/auth';
 import { auth } from '../services/firebase';
 
 export type PageView = 'LANDING' | 'DASHBOARD' | 'PRIVACY' | 'TERMS' | 'ABOUT' | 'SUPPORT';
-export type DashboardTab = 'OVERVIEW' | 'SERVICES' | 'WALLET' | 'SAVINGS' | 'HISTORY' | 'RESELLER' | 'REWARDS' | 'API' | 'PROFILE';
+export type DashboardTab = 'OVERVIEW' | 'SERVICES' | 'WALLET' | 'SAVINGS' | 'HISTORY' | 'RESELLER' | 'REWARDS' | 'API' | 'PROFILE' | 'ADMIN';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -42,6 +42,10 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: 'API', label: 'Developer API', icon: Code },
     { id: 'PROFILE', label: 'My Profile', icon: User },
   ];
+
+  if (userProfile?.isAdmin) {
+      navItems.push({ id: 'ADMIN', label: 'Admin Panel', icon: Lock });
+  }
 
   const handleTabClick = (tab: DashboardTab) => {
     if (onDashboardNavigate) {
