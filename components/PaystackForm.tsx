@@ -11,6 +11,7 @@ interface PaystackFormProps {
   title?: string;
 }
 
+// SECURE: We only use the Public Key on the frontend.
 const PAYSTACK_PUBLIC_KEY = (import.meta as any).env.VITE_PAYSTACK_PUBLIC_KEY || '';
 
 export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading, forcedAmount, forcedAction, title, onSuccess }) => {
@@ -36,7 +37,7 @@ export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading,
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!PAYSTACK_PUBLIC_KEY) {
-        alert("Paystack Public Key missing!");
+        alert("Paystack Public Key missing! Check your Vercel Environment Variables.");
         return;
     }
 
@@ -47,7 +48,7 @@ export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading,
     const handler = (paystack as any).setup({
       key: PAYSTACK_PUBLIC_KEY,
       email: email,
-      amount: parseFloat(amount) * 100, // Kobo
+      amount: parseFloat(amount) * 100, // Convert to Kobo
       currency: 'NGN',
       metadata: {
          custom_fields: [
@@ -56,23 +57,19 @@ export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading,
       },
       callback: function(response: any) {
         setProcessing(false);
-        // Verify payment on backend normally, here we assume success for client-side
-        // You would typically call an API endpoint here to verify reference
+        // Transaction was successful!
+        // In a Production App: You would send response.reference to your backend server here to verify with Secret Key.
+        // For this Frontend App: We trust the popup response for the UI update.
+        
         if (onSuccess) {
             onSuccess();
         } else {
-            // For Wallet Funding, we just pass verification to main handler
-             onSubmit({
-                url: `https://api.paystack.co/transaction/verify/${response.reference}`,
-                method: 'GET',
-                headers: [{ key: 'Authorization', value: `Bearer ${(import.meta as any).env.VITE_PAYSTACK_SECRET_KEY || ''}` }], // WARNING: Only if user insists on client side verification. ideally send ref to backend.
-                useProxy: true
-            });
+            alert(`Payment Successful! Ref: ${response.reference}`);
         }
       },
       onClose: function() {
         setProcessing(false);
-        alert('Transaction was not completed, window closed.');
+        // User closed the popup
       }
     });
 
