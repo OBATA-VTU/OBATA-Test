@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Wallet, TrendingUp, Shield, Smartphone, Wifi, Zap, CreditCard, ChevronRight, Eye, EyeOff, ArrowDownLeft } from 'lucide-react';
-import { TabType } from '../App';
+import { Wallet, TrendingUp, Shield, Smartphone, Wifi, Zap, CreditCard, ChevronRight, Eye, EyeOff, PiggyBank, Award } from 'lucide-react';
+import { DashboardTab } from './Layout';
 
 interface DashboardOverviewProps {
-  onNavigate: (tab: TabType) => void;
+  onNavigate: (tab: DashboardTab) => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate }) => {
@@ -17,12 +17,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     else setGreeting('Good Evening');
   }, []);
 
-  // Mock Data for demonstration
   const transactions = [
     { id: 1, type: 'Data Purchase', desc: 'MTN 1GB SME', amount: '-₦250.00', date: 'Today, 10:23 AM', status: 'Success', icon: Wifi },
-    { id: 2, type: 'Wallet Funding', desc: 'Paystack Top-up', amount: '+₦5,000.00', date: 'Yesterday, 4:15 PM', status: 'Success', icon: ArrowDownLeft },
-    { id: 3, type: 'Airtime', desc: 'Airtel VTU 500', amount: '-₦500.00', date: '22 Oct, 9:30 AM', status: 'Failed', icon: Smartphone },
-    { id: 4, type: 'Electric Bill', desc: 'Ikeja Electric Token', amount: '-₦2,500.00', date: '20 Oct, 7:12 PM', status: 'Success', icon: Zap },
+    { id: 2, type: 'Wallet Funding', desc: 'Paystack Top-up', amount: '+₦5,000.00', date: 'Yesterday, 4:15 PM', status: 'Success', icon: CreditCard },
+    { id: 3, type: 'Electric Bill', desc: 'Ikeja Electric Token', amount: '-₦2,500.00', date: '20 Oct, 7:12 PM', status: 'Success', icon: Zap },
   ];
 
   return (
@@ -33,13 +31,13 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           <h1 className="text-3xl font-bold text-white">{greeting}, <span className="text-blue-500">Guest</span></h1>
           <p className="text-slate-400">Welcome back to your dashboard.</p>
         </div>
-        <div className="flex items-center space-x-3 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
+        <div className="flex items-center space-x-3 bg-slate-900/50 p-2 rounded-lg border border-slate-800 cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => onNavigate('RESELLER')}>
            <div className="bg-amber-500/10 p-2 rounded-full">
               <Shield className="w-5 h-5 text-amber-500" />
            </div>
            <div className="pr-2">
               <p className="text-xs text-slate-500 uppercase font-bold">Account Type</p>
-              <p className="text-sm font-bold text-white">Smart Earner</p>
+              <p className="text-sm font-bold text-white">Smart Earner <span className="text-xs font-normal text-amber-500 ml-1">(Upgrade)</span></p>
            </div>
         </div>
       </div>
@@ -67,27 +65,34 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
            </div>
         </div>
 
-        {/* Commission Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white relative overflow-hidden group hover:border-blue-500/30 transition-colors">
-           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <TrendingUp className="w-24 h-24 text-green-500" />
+        {/* Kolo Savings Card */}
+        <div onClick={() => onNavigate('SAVINGS')} className="bg-gradient-to-br from-purple-600 to-pink-700 rounded-2xl p-6 text-white shadow-lg shadow-purple-900/20 relative overflow-hidden group cursor-pointer hover:scale-[1.01] transition-transform">
+           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+              <PiggyBank className="w-24 h-24" />
            </div>
            <div className="relative z-10">
-              <p className="text-slate-400 font-medium mb-4">Total Commission</p>
-              <h2 className="text-3xl font-bold mb-2 text-green-400">₦1,240.00</h2>
-              <p className="text-xs text-slate-500">Earned from referrals & cashbacks</p>
+              <div className="flex justify-between items-center mb-4">
+                 <p className="text-purple-100 font-medium">Kolo Savings</p>
+                 <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-bold">15% p.a</span>
+              </div>
+              <h2 className="text-3xl font-bold mb-2">
+                {showBalance ? '₦15,000.00' : '₦ ***.**'}
+              </h2>
+              <div className="flex items-center text-xs text-purple-200 mt-2">
+                 <TrendingUp className="w-3 h-3 mr-1" /> +₦0.20 daily interest
+              </div>
            </div>
         </div>
 
-        {/* Transactions/Referrals Summary */}
-         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white relative overflow-hidden group hover:border-amber-500/30 transition-colors">
+        {/* Commission/Bonus Card */}
+         <div onClick={() => onNavigate('REWARDS')} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-white relative overflow-hidden group hover:border-emerald-500/30 transition-colors cursor-pointer">
            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <CreditCard className="w-24 h-24 text-amber-500" />
+              <Award className="w-24 h-24 text-emerald-500" />
            </div>
            <div className="relative z-10">
-              <p className="text-slate-400 font-medium mb-4">Total Transactions</p>
-              <h2 className="text-3xl font-bold mb-2 text-amber-400">1,205</h2>
-              <p className="text-xs text-slate-500">Successful operations to date</p>
+              <p className="text-slate-400 font-medium mb-4">Referral & Commission</p>
+              <h2 className="text-3xl font-bold mb-2 text-emerald-400">₦1,240.00</h2>
+              <button onClick={() => onNavigate('WALLET')} className="text-xs text-slate-500 hover:text-white transition-colors">Click to Withdraw</button>
            </div>
         </div>
       </div>
@@ -96,10 +101,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       <div>
          <h3 className="text-lg font-bold text-white mb-4">Quick Actions</h3>
          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <QuickActionBtn icon={Smartphone} label="Buy Airtime" color="bg-blue-500" onClick={() => onNavigate('VTU')} />
-            <QuickActionBtn icon={Wifi} label="Buy Data" color="bg-emerald-500" onClick={() => onNavigate('VTU')} />
-            <QuickActionBtn icon={Zap} label="Pay Bills" color="bg-amber-500" onClick={() => onNavigate('VTU')} />
-            <QuickActionBtn icon={CreditCard} label="Fund Wallet" color="bg-purple-500" onClick={() => onNavigate('WALLET')} />
+            <QuickActionBtn icon={Smartphone} label="Buy Airtime" color="bg-blue-500" onClick={() => onNavigate('SERVICES')} />
+            <QuickActionBtn icon={Wifi} label="Buy Data" color="bg-emerald-500" onClick={() => onNavigate('SERVICES')} />
+            <QuickActionBtn icon={Zap} label="Pay Bills" color="bg-amber-500" onClick={() => onNavigate('SERVICES')} />
+            <QuickActionBtn icon={PiggyBank} label="Save Now" color="bg-pink-500" onClick={() => onNavigate('SAVINGS')} />
          </div>
       </div>
 
@@ -107,7 +112,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
          <div className="p-6 border-b border-slate-800 flex justify-between items-center">
             <h3 className="text-lg font-bold text-white">Recent Transactions</h3>
-            <button className="text-sm text-blue-400 hover:text-blue-300 flex items-center transition-colors">
+            <button onClick={() => onNavigate('HISTORY')} className="text-sm text-blue-400 hover:text-blue-300 flex items-center transition-colors">
                View All <ChevronRight className="w-4 h-4 ml-1" />
             </button>
          </div>

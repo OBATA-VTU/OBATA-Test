@@ -1,7 +1,8 @@
+/// <reference types="vite/client" />
 import React, { useState } from 'react';
 import { ApiConfig, KeyValuePair } from '../types';
 import { executeApiRequest } from '../services/api'; 
-import { CreditCard, Smartphone, Wifi, Tv, Zap, Check, GraduationCap, Search, Loader2, Wallet, Server, FileText, XCircle } from 'lucide-react';
+import { CreditCard, Smartphone, Wifi, Tv, Zap, Check, GraduationCap, Search, Loader2, Wallet, FileText, XCircle } from 'lucide-react';
 
 interface ConnectionFormProps {
   onSubmit: (config: ApiConfig) => void;
@@ -10,9 +11,9 @@ interface ConnectionFormProps {
 
 type ServiceType = 'AIRTIME' | 'DATA' | 'CABLE' | 'ELECTRICITY' | 'EDUCATION' | 'BALANCE' | 'TRANSACTION';
 
-// Hardcoded Configuration for Production
-const BASE_URL = 'https://inlomax.com/api';
-const API_KEY = 'se2h4rl9cqhabg07tft55ivg4sp9b0a5jca1u3qe';
+// Configuration from Env Vars
+const BASE_URL = import.meta.env.VITE_INLOMAX_BASE_URL || 'https://inlomax.com/api';
+const API_KEY = import.meta.env.VITE_INLOMAX_API_KEY || ''; // Fallback empty string if not set
 const USE_PROXY = true;
 
 const NETWORKS = [
@@ -259,6 +260,15 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
     return false;
   };
 
+  if (!API_KEY) {
+    return (
+      <div className="bg-red-900/20 border border-red-500/50 p-6 rounded-2xl text-center">
+        <h3 className="text-red-500 font-bold mb-2">Configuration Error</h3>
+        <p className="text-slate-400 text-sm">API Keys not found. Please set VITE_INLOMAX_API_KEY in your Vercel Environment Variables.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Service Selection Tabs */}
@@ -289,8 +299,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5 bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
-        
-        {/* Dynamic Form Fields */}
+        {/* Dynamic Form Fields (Same as before) */}
         <div className="min-h-[200px]">
           {service === 'BALANCE' && (
             <div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
