@@ -11,7 +11,8 @@ import { ResellerPage, RewardsPage, ApiDocsPage, ProfilePage } from './component
 import { PrivacyPolicy, TermsOfService, AboutUs, ContactSupport } from './components/StaticPages';
 import { AuthPage } from './components/AuthPage';
 import { PaystackForm } from './components/PaystackForm';
-import { ServicesPage } from './components/ServicesPage'; // Import ServicesPage
+import { ServicesPage } from './components/ServicesPage';
+import { ReceiptModal } from './components/ReceiptModal'; // New Import
 import { executeApiRequest } from './services/api';
 import { ApiConfig, ApiResponse } from './types';
 import { Activity, ArrowLeft, Loader2, Zap } from 'lucide-react';
@@ -26,6 +27,7 @@ const AuthenticatedApp: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('OVERVIEW');
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<ApiResponse | null>(null);
+  const [isReceiptOpen, setIsReceiptOpen] = useState(false); // Modal State
 
   // Reseller Upgrade Modal State
   const [showResellerModal, setShowResellerModal] = useState(false);
@@ -33,7 +35,7 @@ const AuthenticatedApp: React.FC = () => {
   // Check for pending upgrade on load
   useEffect(() => {
     if (userProfile) {
-        // @ts-ignore - checking for custom field
+        // @ts-ignore
         if (userProfile.pendingUpgrade) {
             setShowResellerModal(true);
         }
@@ -57,9 +59,11 @@ const AuthenticatedApp: React.FC = () => {
   const handleApiRequest = async (config: ApiConfig) => {
     setLoading(true);
     setResponse(null);
+    setIsReceiptOpen(true); // Open modal immediately to show loading state
     try {
       const result = await executeApiRequest(config);
       setResponse(result);
+      // ReceiptModal stays open, now showing result
     } catch (error) {
       console.error("Unexpected error in App:", error);
       setResponse({
@@ -76,12 +80,11 @@ const AuthenticatedApp: React.FC = () => {
   };
 
   const handleResellerPaymentSuccess = async () => {
-      // 1. Update Role to Reseller
       if (currentUser) {
           const userRef = doc(db, 'users', currentUser.uid);
           await updateDoc(userRef, {
-              role: 'RESELLER',
-              pendingUpgrade: deleteField() // Remove the flag
+              isReseller: true,
+              pendingUpgrade: deleteField()
           });
           await refreshProfile();
           setShowResellerModal(false);
@@ -97,13 +100,10 @@ const AuthenticatedApp: React.FC = () => {
       );
   }
 
-  // If user is trying to access dashboard but not logged in, show Auth Page
-  // Or if on Landing page but clicked login
   if (!currentUser && (view === 'DASHBOARD')) {
       return <AuthPage onSuccess={() => setView('DASHBOARD')} />;
   }
 
-  // Pending Reseller Payment Modal
   if (showResellerModal && currentUser) {
       return (
           <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
@@ -127,7 +127,6 @@ const AuthenticatedApp: React.FC = () => {
                   
                   <button 
                     onClick={async () => {
-                        // Cancel upgrade
                         const userRef = doc(db, 'users', currentUser.uid);
                         await updateDoc(userRef, { pendingUpgrade: deleteField() });
                         await refreshProfile();
@@ -189,34 +188,50 @@ const AuthenticatedApp: React.FC = () => {
             </button>
         </div>
 
+        {/* Global Receipt Modal */}
+        <ReceiptModal 
+            isOpen={isReceiptOpen} 
+            onClose={() => setIsReceiptOpen(false)} 
+            response={response} 
+            loading={loading} 
+        />
+
         {/* Dynamic Content Switching */}
         {activeTab === 'OVERVIEW' && (
            <DashboardOverview onNavigate={handleDashboardNavigate} />
         )}
 
         {activeTab === 'SERVICES' && (
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up">
-              {/* Use ServicesPage Component Here */}
-              <div className="lg:col-span-7">
-                  <ServicesPage onSubmit={handleApiRequest} isLoading={loading} />
-              </div>
-
-              <div className="lg:col-span-5">
-                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl h-full min-h-[500px] flex flex-col sticky top-24">
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-lg font-bold text-white flex items-center">
-                        <Activity className="w-5 h-5 mr-2 text-emerald-500" /> Activity Monitor
-                    </h2>
-                    <div className="flex items-center space-x-1.5">
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                        <span className="text-xs text-emerald-500 font-bold uppercase">Online</span>
-                    </div>
+            <div className="grid grid-cols-1 gap-6 animate-fade-in-up">
+              {/* Only show Debug Panel for Admins */}
+              {userProfile?.isAdmin ? (
+                   <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                       <div className="lg:col-span-7">
+                           <ServicesPage onSubmit={handleApiRequest} isLoading={loading} />
+                       </div>
+                       <div className="lg:col-span-5">
+                            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl h-full min-h-[500px] flex flex-col sticky top-24">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h2 className="text-lg font-bold text-white flex items-center">
+                                        <Activity className="w-5 h-5 mr-2 text-red-500" /> Admin Monitor
+                                    </h2>
+                                    <div className="flex items-center space-x-1.5">
+                                        <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                                        <span className="text-xs text-red-500 font-bold uppercase">Live Log</span>
+                                    </div>
+                                </div>
+                                <div className="flex-1">
+                                    <ResponseDisplay response={response} loading={loading} />
+                                </div>
+                            </div>
+                       </div>
+                   </div>
+              ) : (
+                  // Normal User View: Just the form, centered
+                  <div className="max-w-4xl mx-auto w-full">
+                      <ServicesPage onSubmit={handleApiRequest} isLoading={loading} />
                   </div>
-                  <div className="flex-1">
-                    <ResponseDisplay response={response} loading={loading} />
-                  </div>
-                </div>
-              </div>
+              )}
            </div>
         )}
 

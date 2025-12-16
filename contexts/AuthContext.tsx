@@ -7,14 +7,15 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 export interface UserProfile {
   uid: string;
   email: string | null;
-  username?: string; // Optional, as some docs might not have it
+  username?: string;
   isReseller: boolean;
+  isAdmin?: boolean; // Added for Admin Panel protection
   walletBalance: number;
   referralCode: string;
   referredBy: string | null;
-  createdAt: any; // Firestore Timestamp
+  createdAt: any; 
   
-  // New specific fields
+  // Specific fields
   apiKey: string;
   photoURL: string | null;
   transactionPin: string;
@@ -51,12 +52,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // Ensure defaults if fields are missing in older docs
         setUserProfile({
             uid: data.uid,
             email: data.email,
             username: data.username,
             isReseller: data.isReseller ?? false,
+            isAdmin: data.isAdmin ?? false, // Check for admin status
             walletBalance: data.walletBalance ?? 0,
             referralCode: data.referralCode,
             referredBy: data.referredBy,
