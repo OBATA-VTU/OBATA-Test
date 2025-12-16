@@ -3,17 +3,25 @@ import { auth, db } from '../services/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
-export type UserRole = 'USER' | 'RESELLER' | 'ADMIN';
-
+// Updated Schema based on user's database
 export interface UserProfile {
   uid: string;
   email: string | null;
-  username: string;
-  role: UserRole;
+  username?: string; // Optional, as some docs might not have it
+  isReseller: boolean;
   walletBalance: number;
   referralCode: string;
   referredBy: string | null;
-  createdAt: string;
+  createdAt: any; // Firestore Timestamp
+  
+  // New specific fields
+  apiKey: string;
+  photoURL: string | null;
+  transactionPin: string;
+  emailNotificationsEnabled: boolean;
+  hasFunded: boolean;
+  hasMadePurchase: boolean;
+  totalPurchaseValue: number;
 }
 
 interface AuthContextType {
@@ -21,7 +29,7 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   refreshProfile: () => Promise<void>;
-  updateRole: (newRole: UserRole) => Promise<void>;
+  updateRole: (isReseller: boolean) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -42,19 +50,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const docRef = doc(db, 'users', uid);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
-        setUserProfile(docSnap.data() as UserProfile);
+        const data = docSnap.data();
+        // Ensure defaults if fields are missing in older docs
+        setUserProfile({
+            uid: data.uid,
+            email: data.email,
+            username: data.username,
+            isReseller: data.isReseller ?? false,
+            walletBalance: data.walletBalance ?? 0,
+            referralCode: data.referralCode,
+            referredBy: data.referredBy,
+            createdAt: data.createdAt,
+            apiKey: data.apiKey || '',
+            photoURL: data.photoURL || null,
+            transactionPin: data.transactionPin || '0000',
+            emailNotificationsEnabled: data.emailNotificationsEnabled ?? true,
+            hasFunded: data.hasFunded ?? false,
+            hasMadePurchase: data.hasMadePurchase ?? false,
+            totalPurchaseValue: data.totalPurchaseValue ?? 0
+        });
       }
     } catch (error) {
       console.error("Error fetching user profile:", error);
     }
   };
 
-  const updateRole = async (newRole: UserRole) => {
+  const updateRole = async (isReseller: boolean) => {
     if (!currentUser || !userProfile) return;
     try {
       const docRef = doc(db, 'users', currentUser.uid);
-      await setDoc(docRef, { role: newRole }, { merge: true });
-      setUserProfile({ ...userProfile, role: newRole });
+      await setDoc(docRef, { isReseller: isReseller }, { merge: true });
+      setUserProfile({ ...userProfile, isReseller: isReseller });
     } catch (error) {
       console.error("Error updating role:", error);
       throw error;

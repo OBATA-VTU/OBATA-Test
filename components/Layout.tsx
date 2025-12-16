@@ -50,6 +50,8 @@ export const Layout: React.FC<LayoutProps> = ({
     }
   };
 
+  const displayName = userProfile?.username || userProfile?.email?.split('@')[0] || 'User';
+
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 font-sans">
       {/* Header */}
@@ -74,8 +76,10 @@ export const Layout: React.FC<LayoutProps> = ({
                         <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
                     </button>
                     <div className="flex items-center space-x-2 bg-slate-800 py-1.5 px-3 rounded-full border border-slate-700">
-                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-amber-500 rounded-full"></div>
-                        <span className="text-white text-xs">{userProfile?.username || 'User'}</span>
+                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-amber-500 rounded-full overflow-hidden">
+                           {userProfile?.photoURL ? <img src={userProfile.photoURL} alt="Avatar" className="w-full h-full object-cover" /> : null}
+                        </div>
+                        <span className="text-white text-xs">{displayName}</span>
                     </div>
                     <button onClick={handleLogout} className="p-2 hover:text-red-400 transition-colors" title="Logout">
                         <LogOut className="w-5 h-5" />

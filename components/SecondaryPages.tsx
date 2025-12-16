@@ -1,8 +1,29 @@
-import React from 'react';
-import { CheckCircle, Zap, Gift, Copy, User, Lock, Mail, Code, Terminal } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle, Zap, Gift, Copy, User, Lock, Mail, Code, Terminal, Key, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export const ResellerPage: React.FC = () => (
+export const ResellerPage: React.FC = () => {
+  const { userProfile } = useAuth();
+  
+  if (userProfile?.isReseller) {
+      return (
+          <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
+              <div className="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-3xl p-8 text-white text-center relative overflow-hidden">
+                  <div className="relative z-10">
+                      <div className="bg-white/20 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur">
+                          <CheckCircle className="w-8 h-8 text-white" />
+                      </div>
+                      <h1 className="text-4xl font-bold mb-4">You are a Reseller</h1>
+                      <p className="text-emerald-100 max-w-xl mx-auto text-lg mb-8">
+                          Enjoy wholesale prices and priority support.
+                      </p>
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
+  return (
   <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
       <div className="bg-gradient-to-r from-amber-600 to-orange-700 rounded-3xl p-8 text-white text-center relative overflow-hidden">
           <div className="relative z-10">
@@ -54,11 +75,11 @@ export const ResellerPage: React.FC = () => (
           </div>
       </div>
   </div>
-);
+)};
 
 export const RewardsPage: React.FC = () => {
     const { userProfile } = useAuth();
-    const referralLink = `${window.location.origin}?ref=${userProfile?.username || 'guest'}`;
+    const referralLink = `${window.location.origin}?ref=${userProfile?.referralCode || 'guest'}`;
 
     return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
@@ -95,7 +116,9 @@ export const RewardsPage: React.FC = () => {
     );
 };
 
-export const ApiDocsPage: React.FC = () => (
+export const ApiDocsPage: React.FC = () => {
+    const { userProfile } = useAuth();
+    return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in-up">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
             <div className="flex items-center justify-between mb-6">
@@ -111,35 +134,8 @@ export const ApiDocsPage: React.FC = () => (
             <div className="space-y-6">
                 <div>
                     <h3 className="text-white font-bold mb-2">Authentication</h3>
-                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-sm text-slate-300">
-                        Authorization: Token YOUR_API_KEY
-                    </div>
-                </div>
-
-                <div>
-                    <h3 className="text-white font-bold mb-2">Endpoints</h3>
-                    <div className="space-y-2">
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-                            <div className="flex items-center space-x-3">
-                                <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold">POST</span>
-                                <span className="font-mono text-sm text-slate-300">/api/data</span>
-                            </div>
-                            <span className="text-xs text-slate-500">Purchase Data</span>
-                        </div>
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-                            <div className="flex items-center space-x-3">
-                                <span className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs font-bold">POST</span>
-                                <span className="font-mono text-sm text-slate-300">/api/airtime</span>
-                            </div>
-                            <span className="text-xs text-slate-500">Purchase Airtime</span>
-                        </div>
-                        <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 flex justify-between items-center">
-                            <div className="flex items-center space-x-3">
-                                <span className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs font-bold">GET</span>
-                                <span className="font-mono text-sm text-slate-300">/api/balance</span>
-                            </div>
-                            <span className="text-xs text-slate-500">Check Balance</span>
-                        </div>
+                    <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-sm text-slate-300 break-all">
+                        Authorization: Token {userProfile?.apiKey || 'OBATA_YOUR_API_KEY'}
                     </div>
                 </div>
 
@@ -149,52 +145,95 @@ export const ApiDocsPage: React.FC = () => (
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export const ProfilePage: React.FC = () => {
     const { userProfile } = useAuth();
+    const [showApiKey, setShowApiKey] = useState(false);
+    const [showPin, setShowPin] = useState(false);
+
     return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in-up">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
-            <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-                <User className="w-6 h-6 mr-2 text-blue-500" /> Account Settings
-            </h2>
-
-            <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <label className="text-sm text-slate-400">Username</label>
-                        <input type="text" readOnly value={userProfile?.username || ''} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-500 cursor-not-allowed" />
-                    </div>
-                    <div className="space-y-1">
-                        <label className="text-sm text-slate-400">Role</label>
-                        <input type="text" readOnly value={userProfile?.role || ''} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-500 cursor-not-allowed" />
+            <div className="flex items-center space-x-4 mb-8">
+                <img 
+                    src={userProfile?.photoURL || "https://i.ibb.co/9HLqrnZG/7c973cd9-cee7-40ed-af89-fd5dc5b5339e670713365240472949.jpg"} 
+                    alt="Profile" 
+                    className="w-20 h-20 rounded-full border-2 border-slate-700 object-cover"
+                />
+                <div>
+                    <h2 className="text-2xl font-bold text-white">{userProfile?.username || 'User'}</h2>
+                    <p className="text-slate-400">{userProfile?.email}</p>
+                    <div className="flex items-center mt-2">
+                         <span className={`text-xs px-2 py-1 rounded font-bold ${userProfile?.isReseller ? 'bg-amber-500/20 text-amber-500' : 'bg-blue-500/20 text-blue-500'}`}>
+                             {userProfile?.isReseller ? 'Reseller Account' : 'Standard Account'}
+                         </span>
                     </div>
                 </div>
+            </div>
+
+            <div className="space-y-6">
+                
+                {/* Basic Info */}
                 <div className="space-y-1">
-                    <label className="text-sm text-slate-400">Email Address</label>
-                    <div className="relative">
-                        <Mail className="absolute left-3 top-3.5 w-4 h-4 text-slate-500" />
-                        <input type="email" readOnly value={userProfile?.email || ''} className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-3 py-3 text-slate-500 cursor-not-allowed" />
+                    <label className="text-sm text-slate-400">Referral Code</label>
+                    <div className="flex">
+                        <input type="text" readOnly value={userProfile?.referralCode || ''} className="flex-1 bg-slate-950 border border-slate-700 rounded-l-lg p-3 text-white font-mono" />
+                         <button 
+                            onClick={() => navigator.clipboard.writeText(userProfile?.referralCode || '')}
+                            className="bg-slate-800 border border-l-0 border-slate-700 rounded-r-lg px-4 hover:bg-slate-700 text-slate-300"
+                        >
+                            <Copy className="w-4 h-4" />
+                        </button>
                     </div>
                 </div>
 
                 <hr className="border-slate-800 my-6" />
 
-                <h3 className="text-lg font-bold text-white mb-4">Security</h3>
-                <div className="space-y-4">
-                     <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            <div className="bg-slate-800 p-2 rounded-lg"><Lock className="w-4 h-4 text-slate-300" /></div>
-                            <div>
-                                <p className="text-sm font-bold text-white">Change Password</p>
-                                <p className="text-xs text-slate-500">Update your login password</p>
-                            </div>
-                        </div>
-                        <button className="text-blue-500 text-sm font-bold">Update</button>
-                     </div>
-                </div>
+                <h3 className="text-lg font-bold text-white mb-4">Security & Keys</h3>
                 
+                {/* Transaction PIN */}
+                <div className="space-y-1">
+                    <label className="text-sm text-slate-400">Transaction PIN</label>
+                    <div className="relative">
+                        <Lock className="absolute left-3 top-3.5 w-4 h-4 text-slate-500" />
+                        <input 
+                            type={showPin ? "text" : "password"} 
+                            readOnly 
+                            value={userProfile?.transactionPin || ''} 
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-white font-mono tracking-widest" 
+                        />
+                        <button 
+                            onClick={() => setShowPin(!showPin)}
+                            className="absolute right-3 top-3.5 text-slate-500 hover:text-white"
+                        >
+                            {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-1">Used for verifying purchases.</p>
+                </div>
+
+                {/* API Key */}
+                <div className="space-y-1">
+                    <label className="text-sm text-slate-400">API Key</label>
+                    <div className="relative">
+                        <Key className="absolute left-3 top-3.5 w-4 h-4 text-slate-500" />
+                        <input 
+                            type={showApiKey ? "text" : "password"} 
+                            readOnly 
+                            value={userProfile?.apiKey || ''} 
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-10 py-3 text-white font-mono" 
+                        />
+                        <button 
+                            onClick={() => setShowApiKey(!showApiKey)}
+                            className="absolute right-3 top-3.5 text-slate-500 hover:text-white"
+                        >
+                            {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                    </div>
+                </div>
+
                 <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl mt-4">Save Changes</button>
             </div>
         </div>

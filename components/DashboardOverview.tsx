@@ -61,7 +61,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">{greeting}, <span className="text-blue-500 capitalize">{userProfile?.username || 'User'}</span></h1>
+          <h1 className="text-3xl font-bold text-white">{greeting}, <span className="text-blue-500 capitalize">{userProfile?.username || userProfile?.email?.split('@')[0] || 'User'}</span></h1>
           <p className="text-slate-400">Welcome back to your dashboard.</p>
         </div>
         <div className="flex items-center space-x-3 bg-slate-900/50 p-2 rounded-lg border border-slate-800 cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => onNavigate('RESELLER')}>
@@ -71,8 +71,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
            <div className="pr-2">
               <p className="text-xs text-slate-500 uppercase font-bold">Account Type</p>
               <div className="flex items-center">
-                  <p className="text-sm font-bold text-white">{userProfile?.role === 'RESELLER' ? 'Reseller' : 'Smart Earner'}</p>
-                  {userProfile?.role !== 'RESELLER' && <span className="text-[10px] text-amber-500 ml-2 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">Upgrade</span>}
+                  <p className="text-sm font-bold text-white">{userProfile?.isReseller ? 'Reseller' : 'Smart Earner'}</p>
+                  {!userProfile?.isReseller && <span className="text-[10px] text-amber-500 ml-2 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">Upgrade</span>}
               </div>
            </div>
         </div>
