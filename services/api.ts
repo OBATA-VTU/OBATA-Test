@@ -11,8 +11,10 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
     }
   });
 
-  // Ensure Content-Type is set for POST/PUT if body exists
-  if ((config.method === 'POST' || config.method === 'PUT') && !headers['Content-Type']) {
+  const isFormData = config.body instanceof FormData;
+
+  // Ensure Content-Type is set for JSON if not FormData and not GET
+  if ((config.method === 'POST' || config.method === 'PUT') && !headers['Content-Type'] && !isFormData) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -23,26 +25,36 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
   };
 
   if (config.method !== 'GET' && config.body) {
-    try {
-      // Validate JSON
-      JSON.parse(config.body);
-      options.body = config.body;
-    } catch (e) {
-      return {
-        success: false,
-        status: 0,
-        statusText: 'Validation Error',
-        data: { error: 'Invalid JSON in request body' },
-        headers: {},
-        duration: 0,
-      };
+    if (isFormData) {
+      // Browser automatically sets Content-Type with boundary for FormData
+      // We explicitly ensure we don't override it with application/json
+      if (headers['Content-Type'] === 'application/json') {
+        delete (options.headers as Record<string,string>)['Content-Type'];
+      }
+      options.body = config.body as FormData;
+    } else {
+      const bodyStr = config.body as string;
+      // Only validate JSON if we are claiming to send JSON
+      if (headers['Content-Type']?.includes('application/json')) {
+        try {
+          JSON.parse(bodyStr);
+        } catch (e) {
+          return {
+            success: false,
+            status: 0,
+            statusText: 'Validation Error',
+            data: { error: 'Invalid JSON in request body' },
+            headers: {},
+            duration: 0,
+          };
+        }
+      }
+      options.body = bodyStr;
     }
   }
 
   try {
     // Handle CORS Proxy
-    // If useProxy is true, we wrap the URL.
-    // We use encodeURIComponent to ensure query parameters in the target URL don't confuse the proxy.
     const targetUrl = config.useProxy 
       ? `https://corsproxy.io/?${encodeURIComponent(config.url)}` 
       : config.url;
@@ -81,7 +93,7 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
       statusText: 'Network Error',
       data: { 
         error: error.message, 
-        suggestion: 'Failed to fetch. This is likely a CORS issue. Ensure "Use CORS Proxy" is ENABLED in the settings above.' 
+        suggestion: 'Failed to fetch. This is likely a CORS issue. Ensure "Use CORS Proxy" is ENABLED in the settings.' 
       },
       headers: {},
       duration: Math.round(endTime - startTime),

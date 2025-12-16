@@ -9,7 +9,7 @@ export interface ApiConfig {
   url: string;
   method: HttpMethod;
   headers: KeyValuePair[];
-  body?: string; // JSON string
+  body?: string | FormData; // Updated to support file uploads
   useProxy?: boolean;
 }
 

@@ -1,5 +1,5 @@
 {
-  "name": "OBATA VTU - Transaction Terminal",
-  "description": "Virtual Top Up transaction terminal for testing purchases via Inlomax API.",
+  "name": "OBATA VTU",
+  "description": "The fastest way to buy cheap data, airtime, and pay utility bills in Nigeria.",
   "requestFramePermissions": []
 }
