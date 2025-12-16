@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Smartphone, Wifi, Tv, Zap, GraduationCap, ArrowLeft } from 'lucide-react';
 import { ConnectionForm } from './ConnectionForm';
+import { PinVerifyModal } from './PinVerifyModal'; // New Import
 import { ApiConfig } from '../types';
 
 interface ServicesPageProps {
@@ -12,6 +13,8 @@ type ServiceType = 'AIRTIME' | 'DATA' | 'CABLE' | 'ELECTRICITY' | 'EDUCATION' | 
 
 export const ServicesPage: React.FC<ServicesPageProps> = ({ onSubmit, isLoading }) => {
   const [activeService, setActiveService] = useState<ServiceType>(null);
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pendingConfig, setPendingConfig] = useState<ApiConfig | null>(null);
 
   const services = [
     { id: 'AIRTIME', label: 'Buy Airtime', icon: Smartphone, color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20', desc: 'Top up MTN, GLO, Airtel & 9Mobile' },
@@ -21,9 +24,31 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onSubmit, isLoading 
     { id: 'EDUCATION', label: 'Education', icon: GraduationCap, color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20', desc: 'WAEC, NECO & NABTEB Pins' },
   ];
 
+  const handleFormSubmit = (config: ApiConfig) => {
+      // Store the config and show PIN modal
+      setPendingConfig(config);
+      setShowPinModal(true);
+  };
+
+  const onPinVerified = () => {
+      if (pendingConfig) {
+          onSubmit(pendingConfig);
+          setShowPinModal(false);
+          setPendingConfig(null);
+      }
+  };
+
   if (activeService) {
     return (
       <div className="animate-fade-in-up">
+        {/* PIN Modal */}
+        <PinVerifyModal 
+            isOpen={showPinModal} 
+            onClose={() => setShowPinModal(false)} 
+            onVerified={onPinVerified}
+            title={`Confirm ${activeService} Purchase`}
+        />
+
         <button 
           onClick={() => setActiveService(null)}
           className="flex items-center text-slate-400 hover:text-white mb-6 transition-colors"
@@ -48,7 +73,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({ onSubmit, isLoading 
            </div>
 
            <ConnectionForm 
-              onSubmit={onSubmit} 
+              onSubmit={handleFormSubmit} // Intercept submit
               isLoading={isLoading} 
               initialService={activeService} 
            />

@@ -8,7 +8,7 @@ import { WalletPage } from './components/WalletPage';
 import { SavingsPage } from './components/SavingsPage';
 import { HistoryPage } from './components/HistoryPage';
 import { ResellerPage, RewardsPage, ApiDocsPage, ProfilePage } from './components/SecondaryPages';
-import { AdminPanel } from './components/AdminPanel'; // New Import
+import { AdminPanel } from './components/AdminPanel';
 import { PrivacyPolicy, TermsOfService, AboutUs, ContactSupport } from './components/StaticPages';
 import { AuthPage } from './components/AuthPage';
 import { PaystackForm } from './components/PaystackForm';
@@ -199,7 +199,10 @@ const AuthenticatedApp: React.FC = () => {
 
         {/* Dynamic Content Switching */}
         {activeTab === 'OVERVIEW' && (
-           <DashboardOverview onNavigate={handleDashboardNavigate} />
+           <DashboardOverview 
+              onNavigate={handleDashboardNavigate} 
+              onTriggerUpgrade={() => setShowResellerModal(true)} 
+           />
         )}
 
         {activeTab === 'SERVICES' && (

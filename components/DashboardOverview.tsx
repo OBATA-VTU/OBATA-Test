@@ -7,9 +7,10 @@ import { db } from '../services/firebase';
 
 interface DashboardOverviewProps {
   onNavigate: (tab: DashboardTab) => void;
+  onTriggerUpgrade: () => void;
 }
 
-export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate }) => {
+export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate, onTriggerUpgrade }) => {
   const { userProfile, currentUser } = useAuth();
   const [greeting, setGreeting] = useState('');
   const [showBalance, setShowBalance] = useState(true);
@@ -56,6 +57,20 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       return CreditCard;
   };
 
+  const handleUpgradeClick = () => {
+      if (!userProfile?.isReseller) {
+          onTriggerUpgrade();
+      } else {
+          onNavigate('RESELLER');
+      }
+  };
+
+  // Safe access for savingsBalance since it might not be in the initial UserProfile interface but we are adding it dynamically
+  // @ts-ignore
+  const savingsBalance = userProfile?.savingsBalance || 0;
+  // @ts-ignore
+  const commissionBalance = userProfile?.commissionBalance || 0;
+
   return (
     <div className="space-y-8 animate-fade-in-up">
       {/* Header Section */}
@@ -64,7 +79,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
           <h1 className="text-3xl font-bold text-white">{greeting}, <span className="text-blue-500 capitalize">{userProfile?.username || userProfile?.email?.split('@')[0] || 'User'}</span></h1>
           <p className="text-slate-400">Welcome back to your dashboard.</p>
         </div>
-        <div className="flex items-center space-x-3 bg-slate-900/50 p-2 rounded-lg border border-slate-800 cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => onNavigate('RESELLER')}>
+        <div className="flex items-center space-x-3 bg-slate-900/50 p-2 rounded-lg border border-slate-800 cursor-pointer hover:border-amber-500/50 transition-colors" onClick={handleUpgradeClick}>
            <div className="bg-amber-500/10 p-2 rounded-full">
               <Shield className="w-5 h-5 text-amber-500" />
            </div>
@@ -93,7 +108,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                  </button>
               </div>
               <h2 className="text-3xl font-bold mb-2 font-mono">
-                {showBalance ? `₦${(userProfile?.walletBalance || 0).toLocaleString()}` : '₦ ***.**'}
+                {showBalance ? `₦${(userProfile?.walletBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '₦ ***.**'}
               </h2>
               <button onClick={() => onNavigate('WALLET')} className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full backdrop-blur-sm transition-colors flex items-center w-fit mt-2">
                  + Fund Wallet
@@ -112,7 +127,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-bold">15% p.a</span>
               </div>
               <h2 className="text-3xl font-bold mb-2">
-                {showBalance ? '₦0.00' : '₦ ***.**'}
+                {showBalance ? `₦${savingsBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '₦ ***.**'}
               </h2>
               <div className="flex items-center text-xs text-purple-200 mt-2">
                  <TrendingUp className="w-3 h-3 mr-1" /> +₦0.20 daily interest
@@ -127,8 +142,15 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
            </div>
            <div className="relative z-10">
               <p className="text-slate-400 font-medium mb-4">Referral & Commission</p>
-              <h2 className="text-3xl font-bold mb-2 text-emerald-400">₦0.00</h2>
-              <button onClick={() => onNavigate('WALLET')} className="text-xs text-slate-500 hover:text-white transition-colors">Click to Withdraw</button>
+              <h2 className="text-3xl font-bold mb-2 text-emerald-400">
+                  {showBalance ? `₦${commissionBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '₦ ***.**'}
+              </h2>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onNavigate('WALLET'); }} 
+                className="text-xs text-slate-500 hover:text-white transition-colors"
+              >
+                  Click to Withdraw
+              </button>
            </div>
         </div>
       </div>

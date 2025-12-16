@@ -27,6 +27,57 @@ const useReveal = () => {
   }, []);
 };
 
+// Helper Components
+const ServiceCard = ({ delay, icon, title, desc }: { delay: string; icon: React.ReactNode; title: string; desc: string }) => (
+  <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 hover:border-blue-500/50 transition-all hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-900/20 reveal" style={{ transitionDelay: `${delay}ms` }}>
+    <div className="bg-slate-950 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg border border-slate-800">
+      {icon}
+    </div>
+    <h3 className="text-xl font-bold mb-3">{title}</h3>
+    <p className="text-slate-400 leading-relaxed">{desc}</p>
+  </div>
+);
+
+const TestimonialCard = ({ name, role, text, img }: { name: string; role: string; text: string; img: string }) => (
+  <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 hover:border-slate-700 transition-colors reveal">
+    <div className="flex items-center space-x-4 mb-6">
+      <img src={img} alt={name} className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-800" />
+      <div>
+        <h4 className="font-bold text-white">{name}</h4>
+        <p className="text-sm text-slate-500">{role}</p>
+      </div>
+    </div>
+    <div className="mb-4">
+      <div className="flex text-amber-500 space-x-1">
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Star key={i} className="w-4 h-4 fill-current" />
+        ))}
+      </div>
+    </div>
+    <p className="text-slate-400 leading-relaxed italic">"{text}"</p>
+  </div>
+);
+
+const FaqItem = ({ question, answer }: { question: string; answer: string }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  return (
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden transition-all">
+      <button 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-6 text-left"
+      >
+        <span className="font-bold text-lg text-white">{question}</span>
+        <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="px-6 pb-6 text-slate-400 leading-relaxed border-t border-slate-800/50 pt-4">
+          {answer}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNavigate, onDashboardNavigate }) => {
   useReveal();
   const { currentUser, userProfile } = useAuth();
@@ -154,9 +205,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
             
             <div className="mt-10 flex items-center justify-center lg:justify-start space-x-4 text-sm text-slate-500">
                <div className="flex -space-x-2">
-                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 grayscale" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=64&h=64" alt="" />
-                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 grayscale" src="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=64&h=64" alt="" />
-                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 grayscale" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=64&h=64" alt="" />
+                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 object-cover" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&q=80" alt="" />
+                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 object-cover" src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&q=80" alt="" />
+                  <img className="inline-block h-8 w-8 rounded-full ring-2 ring-slate-900 object-cover" src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&q=80" alt="" />
                </div>
                <p>Trusted by <span className="text-white font-bold">5,000+</span> vendors</p>
             </div>
@@ -165,9 +216,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
           <div className="lg:w-1/2 relative reveal">
              <div className="relative mx-auto w-full max-w-[500px]">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-amber-500 rounded-2xl blur opacity-30 animate-pulse"></div>
-                {/* Changed Image to be more Relevant */}
+                {/* NEW HERO IMAGE - Mobile Usage Concept */}
                 <img 
-                  src="https://images.unsplash.com/photo-1556742049-0cfed4f7a07d?auto=format&fit=crop&w=1000&q=80" 
+                  src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?q=80&w=1000&auto=format&fit=crop" 
                   alt="Seamless Mobile Payments" 
                   className="relative rounded-2xl shadow-2xl border border-slate-700 z-10 w-full object-cover h-[550px]"
                 />
@@ -247,7 +298,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
         </div>
       </section>
 
-      {/* How It Works Section (New) */}
+      {/* How It Works Section */}
       <section id="how-it-works" className="py-20 bg-slate-900 border-y border-slate-800">
          <div className="max-w-7xl mx-auto px-4">
              <div className="text-center mb-16">
@@ -340,9 +391,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
                <div className="lg:w-1/2 reveal">
                   <div className="relative">
                       <div className="absolute inset-0 bg-blue-600 rounded-3xl rotate-3 opacity-20"></div>
-                      {/* Changed to Server/Security Image */}
+                      {/* NEW FEATURE IMAGE - Datacenter */}
                       <img 
-                          src="https://images.unsplash.com/photo-1558494949-ef526b01201b?auto=format&fit=crop&w=800&q=80" 
+                          src="https://images.unsplash.com/photo-1544197150-b99a580bb7a8?q=80&w=1000&auto=format&fit=crop" 
                           alt="Secure Infrastructure" 
                           className="relative rounded-3xl shadow-2xl border border-slate-700 hover:scale-[1.02] transition-transform duration-500 h-[400px] w-full object-cover"
                       />
@@ -380,9 +431,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
                <div className="lg:w-1/2 reveal">
                   <div className="relative">
                       <div className="absolute inset-0 bg-amber-500 rounded-3xl -rotate-3 opacity-10"></div>
-                      {/* Changed to Fiber Optic / Speed Image */}
+                      {/* NEW FEATURE IMAGE - Global Connectivity */}
                        <img 
-                          src="https://images.unsplash.com/photo-1520692793134-29e1eb199738?q=80&w=2070&auto=format&fit=crop" 
+                          src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1000&auto=format&fit=crop" 
                           alt="Fast Transactions" 
                           className="relative rounded-3xl shadow-2xl border border-slate-700 hover:scale-[1.02] transition-transform duration-500 h-[400px] w-full object-cover"
                       />
@@ -427,19 +478,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
                       name="Emmanuel Adebayo"
                       role="Data Reseller"
                       text="I have tried many platforms, but OBATA VTU is the fastest. Their customer support is also top-notch. Highly recommended!"
-                      img="https://images.unsplash.com/photo-1531384441138-2736e62e0919?auto=format&fit=crop&w=100&q=80"
+                      img="https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&h=100&fit=crop&q=80"
                   />
                   <TestimonialCard 
                       name="Chioma Okeke"
                       role="Student"
                       text="As a student, getting cheap data is a priority. OBATA gives me the best rates for MTN data. I save a lot of money here."
-                      img="https://images.unsplash.com/photo-1589156280159-27698a70f29e?auto=format&fit=crop&w=100&q=80"
+                      img="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&q=80"
                   />
                   <TestimonialCard 
                       name="Musa Ibrahim"
                       role="Business Owner"
                       text="I pay all my shop's electricity bills and cable subscriptions using this app. It has never failed me once. Very reliable."
-                      img="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100&q=80"
+                      img="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&q=80"
                   />
               </div>
           </div>
@@ -537,52 +588,4 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
       </footer>
     </div>
   );
-};
-
-const ServiceCard = ({ icon, title, desc, delay }: { icon: React.ReactNode, title: string, desc: string, delay: string }) => (
-    <div className="bg-slate-900/50 p-8 rounded-2xl border border-slate-800 hover:border-blue-500/50 transition-all hover:bg-slate-900 group reveal" style={{ transitionDelay: `${delay}ms` }}>
-        <div className="mb-6 bg-slate-950 w-16 h-16 rounded-2xl flex items-center justify-center border border-slate-800 group-hover:scale-110 transition-transform shadow-lg">
-            {icon}
-        </div>
-        <h3 className="text-xl font-bold mb-3 text-white group-hover:text-blue-400 transition-colors">{title}</h3>
-        <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-    </div>
-);
-
-const TestimonialCard = ({ name, role, text, img }: { name: string, role: string, text: string, img: string }) => (
-    <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 reveal">
-        <div className="flex items-center space-x-1 text-amber-500 mb-4">
-            <Star className="w-4 h-4 fill-current" />
-            <Star className="w-4 h-4 fill-current" />
-            <Star className="w-4 h-4 fill-current" />
-            <Star className="w-4 h-4 fill-current" />
-            <Star className="w-4 h-4 fill-current" />
-        </div>
-        <p className="text-slate-300 italic mb-6 leading-relaxed">"{text}"</p>
-        <div className="flex items-center space-x-4">
-            <img src={img} alt={name} className="w-12 h-12 rounded-full border-2 border-slate-700" />
-            <div>
-                <h4 className="text-white font-bold text-sm">{name}</h4>
-                <p className="text-slate-500 text-xs">{role}</p>
-            </div>
-        </div>
-    </div>
-);
-
-const FaqItem = ({ question, answer }: { question: string, answer: string }) => {
-    const [isOpen, setIsOpen] = React.useState(false);
-    return (
-        <div className="bg-slate-900 border border-slate-800 rounded-lg overflow-hidden reveal">
-            <button 
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full px-6 py-4 flex items-center justify-between text-left text-white font-semibold hover:bg-slate-800/50 transition-colors"
-            >
-                {question}
-                <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-            </button>
-            <div className={`px-6 text-slate-400 text-sm leading-relaxed overflow-hidden transition-all duration-300 ${isOpen ? 'max-h-40 py-4 border-t border-slate-800' : 'max-h-0'}`}>
-                {answer}
-            </div>
-        </div>
-    );
 };

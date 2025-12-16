@@ -1,20 +1,160 @@
 import React, { useState } from 'react';
-import { PiggyBank, TrendingUp, Lock, ShieldCheck } from 'lucide-react';
+import { PiggyBank, TrendingUp, Lock, ShieldCheck, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { doc, runTransaction, serverTimestamp, increment, collection } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 export const SavingsPage: React.FC = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser, refreshProfile } = useAuth();
   const [saveAmount, setSaveAmount] = useState('');
   const [duration, setDuration] = useState('30');
+  const [loading, setLoading] = useState(false);
+  const [view, setView] = useState<'DASHBOARD' | 'WITHDRAW'>('DASHBOARD');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
 
-  // Use real data or default to 0 to avoid fake information
-  const savingsBalance = 0; 
+  // Access dynamic field, defaulting to 0
+  // @ts-ignore
+  const savingsBalance = userProfile?.savingsBalance || 0;
+  const walletBalance = userProfile?.walletBalance || 0;
 
   // Interest Logic: 0.20 naira per day for every 500 naira
   const amountNum = parseFloat(saveAmount) || 0;
   const dailyInterest = (amountNum / 500) * 0.20;
   const totalInterest = dailyInterest * parseFloat(duration);
   const totalReturn = amountNum + totalInterest;
+
+  const handleCreateSavings = async () => {
+     if (!currentUser) return;
+     if (amountNum < 100) {
+         alert("Minimum savings amount is ₦100");
+         return;
+     }
+     if (amountNum > walletBalance) {
+         alert("Insufficient wallet balance.");
+         return;
+     }
+
+     if (!confirm(`Confirm savings of ₦${amountNum} for ${duration} days? This will be deducted from your main wallet.`)) return;
+
+     setLoading(true);
+     try {
+         await runTransaction(db, async (transaction) => {
+             const userRef = doc(db, 'users', currentUser.uid);
+             const userDoc = await transaction.get(userRef);
+             if (!userDoc.exists()) throw "User does not exist";
+
+             const currentWallet = userDoc.data().walletBalance || 0;
+             if (currentWallet < amountNum) throw "Insufficient funds";
+
+             // Deduct from Wallet
+             transaction.update(userRef, { 
+                 walletBalance: increment(-amountNum),
+                 savingsBalance: increment(amountNum)
+             });
+
+             // Create Transaction Record
+             const txnRef = doc(collection(db, 'transactions'));
+             transaction.set(txnRef, {
+                 userId: currentUser.uid,
+                 type: 'DEBIT',
+                 amount: amountNum,
+                 description: `Kolo Savings Deposit (${duration} Days)`,
+                 status: 'SUCCESS',
+                 date: serverTimestamp()
+             });
+         });
+
+         await refreshProfile();
+         setSaveAmount('');
+         alert("Savings Plan Created Successfully! Funds moved to Kolo.");
+     } catch (e: any) {
+         alert("Failed to save: " + e.message);
+     } finally {
+         setLoading(false);
+     }
+  };
+
+  const handleWithdrawSavings = async () => {
+      if (!currentUser) return;
+      const amt = parseFloat(withdrawAmount);
+      if (isNaN(amt) || amt <= 0) {
+          alert("Invalid amount");
+          return;
+      }
+      if (amt > savingsBalance) {
+          alert("Insufficient savings balance");
+          return;
+      }
+
+      setLoading(true);
+      try {
+           await runTransaction(db, async (transaction) => {
+             const userRef = doc(db, 'users', currentUser.uid);
+             
+             // Move from Savings to Wallet
+             transaction.update(userRef, { 
+                 savingsBalance: increment(-amt),
+                 walletBalance: increment(amt)
+             });
+
+             // Create Transaction Record
+             const txnRef = doc(collection(db, 'transactions'));
+             transaction.set(txnRef, {
+                 userId: currentUser.uid,
+                 type: 'CREDIT',
+                 amount: amt,
+                 description: `Kolo Savings Withdrawal`,
+                 status: 'SUCCESS',
+                 date: serverTimestamp()
+             });
+         });
+         await refreshProfile();
+         setWithdrawAmount('');
+         setView('DASHBOARD');
+         alert("Withdrawal Successful! Funds moved to Main Wallet.");
+      } catch (e: any) {
+          alert("Error: " + e.message);
+      } finally {
+          setLoading(false);
+      }
+  };
+
+  if (view === 'WITHDRAW') {
+      return (
+          <div className="max-w-md mx-auto space-y-6 animate-fade-in-up">
+              <button onClick={() => setView('DASHBOARD')} className="flex items-center text-slate-400 hover:text-white mb-4">
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Back to Savings
+              </button>
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
+                  <h2 className="text-2xl font-bold text-white mb-6">Withdraw Savings</h2>
+                  <div className="bg-purple-900/20 p-4 rounded-xl mb-6 border border-purple-500/30">
+                      <p className="text-slate-400 text-sm">Available Savings</p>
+                      <p className="text-3xl font-bold text-white">₦{savingsBalance.toLocaleString()}</p>
+                  </div>
+
+                  <div className="space-y-4">
+                      <div>
+                          <label className="text-sm text-slate-400 mb-1 block">Amount to Withdraw</label>
+                          <input 
+                            type="number" 
+                            value={withdrawAmount} 
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white font-bold"
+                            placeholder="0.00"
+                          />
+                      </div>
+                      <button 
+                        onClick={handleWithdrawSavings}
+                        disabled={loading}
+                        className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg flex items-center justify-center"
+                      >
+                          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Withdrawal'}
+                      </button>
+                  </div>
+              </div>
+          </div>
+      );
+  }
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -30,10 +170,16 @@ export const SavingsPage: React.FC = () => {
              <p className="text-purple-200">Total Savings Balance</p>
              <h1 className="text-5xl font-bold mb-6">₦{savingsBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h1>
              <div className="flex gap-4">
-                <button className="bg-white text-purple-700 px-6 py-3 rounded-xl font-bold hover:bg-purple-50 transition-colors shadow-lg">
+                <button 
+                    onClick={() => document.getElementById('savings-input')?.focus()}
+                    className="bg-white text-purple-700 px-6 py-3 rounded-xl font-bold hover:bg-purple-50 transition-colors shadow-lg"
+                >
                    + Quick Save
                 </button>
-                <button className="bg-purple-900/50 text-white border border-white/20 px-6 py-3 rounded-xl font-bold hover:bg-purple-900/70 transition-colors">
+                <button 
+                    onClick={() => setView('WITHDRAW')}
+                    className="bg-purple-900/50 text-white border border-white/20 px-6 py-3 rounded-xl font-bold hover:bg-purple-900/70 transition-colors"
+                >
                    Withdraw
                 </button>
              </div>
@@ -50,6 +196,7 @@ export const SavingsPage: React.FC = () => {
                 <div>
                    <label className="text-sm text-slate-400 block mb-2">I want to save (₦)</label>
                    <input 
+                      id="savings-input"
                       type="number" 
                       value={saveAmount} 
                       onChange={(e) => setSaveAmount(e.target.value)} 
@@ -87,8 +234,12 @@ export const SavingsPage: React.FC = () => {
                    </div>
                 </div>
 
-                <button className="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-pink-600/20">
-                   Create Savings Plan
+                <button 
+                    onClick={handleCreateSavings}
+                    disabled={loading || amountNum <= 0}
+                    className="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-pink-600/20 flex items-center justify-center"
+                >
+                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Savings Plan'}
                 </button>
              </div>
           </div>

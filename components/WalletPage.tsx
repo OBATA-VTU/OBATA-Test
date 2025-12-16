@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, ArrowDownLeft, ArrowUpRight, Wallet, AlertCircle, Copy, Check, UploadCloud, Loader2 } from 'lucide-react';
 import { PaystackForm } from './PaystackForm';
+import { PinVerifyModal } from './PinVerifyModal'; // New Import
 import { ApiConfig } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, increment, updateDoc, serverTimestamp, collection, addDoc, setDoc } from 'firebase/firestore';
+import { doc, increment, updateDoc, serverTimestamp, collection, addDoc, setDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 interface WalletPageProps {
@@ -26,7 +27,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
   const [manualRef, setManualRef] = useState('');
 
   // Withdraw States
-  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawCommissionLoading, setWithdrawCommissionLoading] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false); // Modal State
 
   useEffect(() => {
       if (currentUser) {
@@ -36,7 +38,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
   }, [currentUser, fundingMethod]);
 
   const walletBalance = userProfile?.walletBalance || 0;
-  const commissionBalance = 0; // Placeholder
+  // @ts-ignore
+  const commissionBalance = userProfile?.commissionBalance || 0;
 
   // Calculate Paystack Total
   const fundingAmount = parseFloat(amount) || 0;
@@ -127,8 +130,59 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
       }
   };
 
+  const initiateWithdrawal = () => {
+      if (commissionBalance <= 0) {
+          alert("You have no commission to withdraw.");
+          return;
+      }
+      setShowPinModal(true);
+  };
+
+  const handleWithdrawCommission = async () => {
+      if (!currentUser) return;
+      
+      setWithdrawCommissionLoading(true);
+      setShowPinModal(false); // Close Modal
+
+      try {
+          await runTransaction(db, async (transaction) => {
+              const userRef = doc(db, 'users', currentUser.uid);
+              // Move from Commission to Main Wallet
+              transaction.update(userRef, {
+                  commissionBalance: 0,
+                  walletBalance: increment(commissionBalance)
+              });
+              
+              const txnRef = doc(collection(db, 'transactions'));
+              transaction.set(txnRef, {
+                  userId: currentUser.uid,
+                  type: 'CREDIT',
+                  amount: commissionBalance,
+                  description: 'Commission Withdrawal to Wallet',
+                  status: 'SUCCESS',
+                  date: serverTimestamp()
+              });
+          });
+
+          await refreshProfile();
+          alert(`Successfully withdrew ₦${commissionBalance} to main wallet!`);
+      } catch (e: any) {
+          alert("Withdrawal failed: " + e.message);
+      } finally {
+          setWithdrawCommissionLoading(false);
+      }
+  };
+
   return (
     <div className="space-y-6 animate-fade-in-up">
+      <PinVerifyModal 
+          isOpen={showPinModal}
+          onClose={() => setShowPinModal(false)}
+          onVerified={handleWithdrawCommission}
+          title="Withdraw Commission"
+          amount={commissionBalance.toString()}
+      />
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-end bg-gradient-to-r from-blue-900 to-slate-900 p-6 rounded-2xl border border-blue-800 shadow-xl">
         <div>
@@ -308,9 +362,21 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
          )}
 
          {activeTab === 'WITHDRAW_COMMISSION' && (
-             <div className="text-center py-12 text-slate-500">
-                 <Wallet className="w-16 h-16 mx-auto mb-4 opacity-20" />
-                 <p>Withdrawal module is under maintenance.</p>
+             <div className="text-center py-8">
+                 <div className="bg-emerald-900/20 border border-emerald-500/30 p-6 rounded-2xl max-w-md mx-auto mb-6">
+                     <p className="text-emerald-400 text-sm mb-1 uppercase font-bold">Commission Balance</p>
+                     <h2 className="text-4xl font-bold text-white mb-4">₦{commissionBalance.toLocaleString()}</h2>
+                     <button 
+                        onClick={initiateWithdrawal}
+                        disabled={withdrawCommissionLoading || commissionBalance <= 0}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                     >
+                         {withdrawCommissionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Move to Main Wallet'}
+                     </button>
+                 </div>
+                 <p className="text-slate-500 text-sm">
+                     Commissions are earned when people you refer upgrade to Reseller.
+                 </p>
              </div>
          )}
       </div>
