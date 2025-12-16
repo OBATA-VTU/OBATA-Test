@@ -11,6 +11,7 @@ import { ResellerPage, RewardsPage, ApiDocsPage, ProfilePage } from './component
 import { PrivacyPolicy, TermsOfService, AboutUs, ContactSupport } from './components/StaticPages';
 import { AuthPage } from './components/AuthPage';
 import { PaystackForm } from './components/PaystackForm';
+import { ServicesPage } from './components/ServicesPage'; // Import ServicesPage
 import { executeApiRequest } from './services/api';
 import { ApiConfig, ApiResponse } from './types';
 import { Activity, ArrowLeft, Loader2, Zap } from 'lucide-react';
@@ -116,22 +117,14 @@ const AuthenticatedApp: React.FC = () => {
                   </div>
 
                   <PaystackForm 
-                    onSubmit={() => {}} // Not used for this flow directly, inner logic handles it
+                    onSubmit={() => {}} 
                     isLoading={false}
                     forcedAmount="1000"
                     forcedAction="INITIALIZE"
                     title="Reseller Upgrade Fee"
-                    onSuccess={handleResellerPaymentSuccess} // This needs to be wired in PaystackForm properly or simulated
+                    onSuccess={handleResellerPaymentSuccess}
                   />
                   
-                  {/* Simulation Button for "Success" since we can't do real payment in this demo */}
-                  <button 
-                    onClick={handleResellerPaymentSuccess}
-                    className="mt-4 w-full py-2 bg-slate-800 text-slate-500 text-xs rounded hover:bg-slate-700"
-                  >
-                      (Dev Mode: Simulate Payment Success)
-                  </button>
-
                   <button 
                     onClick={async () => {
                         // Cancel upgrade
@@ -203,16 +196,11 @@ const AuthenticatedApp: React.FC = () => {
 
         {activeTab === 'SERVICES' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-fade-in-up">
+              {/* Use ServicesPage Component Here */}
               <div className="lg:col-span-7">
-                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full -z-10"></div>
-                    <div className="mb-6 pb-6 border-b border-slate-800">
-                        <h2 className="text-xl font-bold text-white mb-1">Buy Airtime, Data & Bills</h2>
-                        <p className="text-sm text-slate-400">Instant delivery on all networks.</p>
-                    </div>
-                    <ConnectionForm onSubmit={handleApiRequest} isLoading={loading} />
-                 </div>
+                  <ServicesPage onSubmit={handleApiRequest} isLoading={loading} />
               </div>
+
               <div className="lg:col-span-5">
                 <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl h-full min-h-[500px] flex flex-col sticky top-24">
                   <div className="flex items-center justify-between mb-6">

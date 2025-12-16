@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { CheckCircle, Zap, Gift, Copy, Bell, User, Lock, Mail, Phone, Code, Terminal, AlertTriangle } from 'lucide-react';
+import React from 'react';
+import { CheckCircle, Zap, Gift, Copy, User, Lock, Mail, Code, Terminal } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export const ResellerPage: React.FC = () => (
   <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
@@ -55,7 +56,11 @@ export const ResellerPage: React.FC = () => (
   </div>
 );
 
-export const RewardsPage: React.FC = () => (
+export const RewardsPage: React.FC = () => {
+    const { userProfile } = useAuth();
+    const referralLink = `${window.location.origin}?ref=${userProfile?.username || 'guest'}`;
+
+    return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
@@ -67,8 +72,11 @@ export const RewardsPage: React.FC = () => (
                 <h3 className="text-lg font-bold text-white mb-2">Refer & Earn</h3>
                 <p className="text-slate-400 text-sm mb-4">Share your link and earn ₦500 when your referral upgrades to Reseller.</p>
                 <div className="flex bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
-                    <input type="text" readOnly value="https://obatavtu.com/ref/guest" className="flex-1 bg-transparent px-4 text-slate-300 text-sm" />
-                    <button className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 flex items-center font-bold text-sm">
+                    <input type="text" readOnly value={referralLink} className="flex-1 bg-transparent px-4 text-slate-300 text-sm" />
+                    <button 
+                        onClick={() => navigator.clipboard.writeText(referralLink)}
+                        className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 flex items-center font-bold text-sm"
+                    >
                         <Copy className="w-4 h-4 mr-2" /> Copy
                     </button>
                 </div>
@@ -84,7 +92,8 @@ export const RewardsPage: React.FC = () => (
             </div>
         </div>
     </div>
-);
+    );
+};
 
 export const ApiDocsPage: React.FC = () => (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in-up">
@@ -142,7 +151,9 @@ export const ApiDocsPage: React.FC = () => (
     </div>
 );
 
-export const ProfilePage: React.FC = () => (
+export const ProfilePage: React.FC = () => {
+    const { userProfile } = useAuth();
+    return (
     <div className="max-w-2xl mx-auto space-y-6 animate-fade-in-up">
         <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
             <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
@@ -152,19 +163,19 @@ export const ProfilePage: React.FC = () => (
             <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
-                        <label className="text-sm text-slate-400">Full Name</label>
-                        <input type="text" defaultValue="Guest User" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white" />
+                        <label className="text-sm text-slate-400">Username</label>
+                        <input type="text" readOnly value={userProfile?.username || ''} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-500 cursor-not-allowed" />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-sm text-slate-400">Phone Number</label>
-                        <input type="tel" defaultValue="08000000000" className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white" />
+                        <label className="text-sm text-slate-400">Role</label>
+                        <input type="text" readOnly value={userProfile?.role || ''} className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-slate-500 cursor-not-allowed" />
                     </div>
                 </div>
                 <div className="space-y-1">
                     <label className="text-sm text-slate-400">Email Address</label>
                     <div className="relative">
                         <Mail className="absolute left-3 top-3.5 w-4 h-4 text-slate-500" />
-                        <input type="email" defaultValue="user@example.com" className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-3 py-3 text-white" />
+                        <input type="email" readOnly value={userProfile?.email || ''} className="w-full bg-slate-950 border border-slate-700 rounded-lg pl-10 pr-3 py-3 text-slate-500 cursor-not-allowed" />
                     </div>
                 </div>
 
@@ -182,20 +193,11 @@ export const ProfilePage: React.FC = () => (
                         </div>
                         <button className="text-blue-500 text-sm font-bold">Update</button>
                      </div>
-                     <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                            <div className="bg-slate-800 p-2 rounded-lg"><Code className="w-4 h-4 text-slate-300" /></div>
-                            <div>
-                                <p className="text-sm font-bold text-white">Transaction PIN</p>
-                                <p className="text-xs text-slate-500">4-digit pin for transactions</p>
-                            </div>
-                        </div>
-                        <button className="text-blue-500 text-sm font-bold">Reset</button>
-                     </div>
                 </div>
                 
                 <button className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl mt-4">Save Changes</button>
             </div>
         </div>
     </div>
-);
+    );
+};

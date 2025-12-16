@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, TrendingUp, Shield, Smartphone, Wifi, Zap, CreditCard, ChevronRight, Eye, EyeOff, PiggyBank, Award } from 'lucide-react';
 import { DashboardTab } from './Layout';
+import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface DashboardOverviewProps {
   onNavigate: (tab: DashboardTab) => void;
 }
 
 export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate }) => {
+  const { userProfile, currentUser } = useAuth();
   const [greeting, setGreeting] = useState('');
   const [showBalance, setShowBalance] = useState(true);
+  const [recentTxns, setRecentTxns] = useState<any[]>([]);
+  const [isLoadingTxns, setIsLoadingTxns] = useState(true);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -17,18 +23,45 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
     else setGreeting('Good Evening');
   }, []);
 
-  const transactions = [
-    { id: 1, type: 'Data Purchase', desc: 'MTN 1GB SME', amount: '-₦250.00', date: 'Today, 10:23 AM', status: 'Success', icon: Wifi },
-    { id: 2, type: 'Wallet Funding', desc: 'Paystack Top-up', amount: '+₦5,000.00', date: 'Yesterday, 4:15 PM', status: 'Success', icon: CreditCard },
-    { id: 3, type: 'Electric Bill', desc: 'Ikeja Electric Token', amount: '-₦2,500.00', date: '20 Oct, 7:12 PM', status: 'Success', icon: Zap },
-  ];
+  // Fetch recent transactions
+  useEffect(() => {
+      const fetchRecentTxns = async () => {
+          if (!currentUser) return;
+          try {
+              const q = query(
+                  collection(db, 'transactions'),
+                  where('userId', '==', currentUser.uid),
+                  orderBy('date', 'desc'),
+                  limit(3)
+              );
+              const snapshot = await getDocs(q);
+              const txns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              setRecentTxns(txns);
+          } catch (error) {
+              console.error("Error fetching transactions", error);
+              // Fallback for demo if no collection exists yet
+              setRecentTxns([]);
+          } finally {
+              setIsLoadingTxns(false);
+          }
+      };
+      fetchRecentTxns();
+  }, [currentUser]);
+
+  const getIconForType = (type: string) => {
+      if (type?.includes('Data')) return Wifi;
+      if (type?.includes('Airtime')) return Smartphone;
+      if (type?.includes('Electric') || type?.includes('Bill')) return Zap;
+      if (type?.includes('Funding')) return CreditCard;
+      return CreditCard;
+  };
 
   return (
     <div className="space-y-8 animate-fade-in-up">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">{greeting}, <span className="text-blue-500">Guest</span></h1>
+          <h1 className="text-3xl font-bold text-white">{greeting}, <span className="text-blue-500 capitalize">{userProfile?.username || 'User'}</span></h1>
           <p className="text-slate-400">Welcome back to your dashboard.</p>
         </div>
         <div className="flex items-center space-x-3 bg-slate-900/50 p-2 rounded-lg border border-slate-800 cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => onNavigate('RESELLER')}>
@@ -37,7 +70,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
            </div>
            <div className="pr-2">
               <p className="text-xs text-slate-500 uppercase font-bold">Account Type</p>
-              <p className="text-sm font-bold text-white">Smart Earner <span className="text-xs font-normal text-amber-500 ml-1">(Upgrade)</span></p>
+              <div className="flex items-center">
+                  <p className="text-sm font-bold text-white">{userProfile?.role === 'RESELLER' ? 'Reseller' : 'Smart Earner'}</p>
+                  {userProfile?.role !== 'RESELLER' && <span className="text-[10px] text-amber-500 ml-2 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">Upgrade</span>}
+              </div>
            </div>
         </div>
       </div>
@@ -56,8 +92,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                     {showBalance ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
                  </button>
               </div>
-              <h2 className="text-3xl font-bold mb-2">
-                {showBalance ? '₦50,450.00' : '₦ ***.**'}
+              <h2 className="text-3xl font-bold mb-2 font-mono">
+                {showBalance ? `₦${(userProfile?.walletBalance || 0).toLocaleString()}` : '₦ ***.**'}
               </h2>
               <button onClick={() => onNavigate('WALLET')} className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full backdrop-blur-sm transition-colors flex items-center w-fit mt-2">
                  + Fund Wallet
@@ -76,7 +112,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
                  <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-bold">15% p.a</span>
               </div>
               <h2 className="text-3xl font-bold mb-2">
-                {showBalance ? '₦15,000.00' : '₦ ***.**'}
+                {showBalance ? '₦0.00' : '₦ ***.**'}
               </h2>
               <div className="flex items-center text-xs text-purple-200 mt-2">
                  <TrendingUp className="w-3 h-3 mr-1" /> +₦0.20 daily interest
@@ -91,7 +127,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
            </div>
            <div className="relative z-10">
               <p className="text-slate-400 font-medium mb-4">Referral & Commission</p>
-              <h2 className="text-3xl font-bold mb-2 text-emerald-400">₦1,240.00</h2>
+              <h2 className="text-3xl font-bold mb-2 text-emerald-400">₦0.00</h2>
               <button onClick={() => onNavigate('WALLET')} className="text-xs text-slate-500 hover:text-white transition-colors">Click to Withdraw</button>
            </div>
         </div>
@@ -109,7 +145,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       </div>
 
       {/* Recent Transactions */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden min-h-[200px]">
          <div className="p-6 border-b border-slate-800 flex justify-between items-center">
             <h3 className="text-lg font-bold text-white">Recent Transactions</h3>
             <button onClick={() => onNavigate('HISTORY')} className="text-sm text-blue-400 hover:text-blue-300 flex items-center transition-colors">
@@ -117,23 +153,35 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             </button>
          </div>
          <div className="divide-y divide-slate-800">
-            {transactions.map((tx) => (
-               <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-slate-800/50 transition-colors cursor-pointer">
-                  <div className="flex items-center space-x-4">
-                     <div className={`p-2 rounded-full ${tx.amount.startsWith('+') ? 'bg-green-500/10 text-green-500' : 'bg-slate-800 text-slate-400'}`}>
-                        <tx.icon className="w-5 h-5" />
-                     </div>
-                     <div>
-                        <p className="text-white font-medium">{tx.type}</p>
-                        <p className="text-xs text-slate-500">{tx.desc} • {tx.date}</p>
-                     </div>
-                  </div>
-                  <div className="text-right">
-                     <p className={`font-bold ${tx.amount.startsWith('+') ? 'text-green-500' : 'text-slate-200'}`}>{tx.amount}</p>
-                     <p className={`text-xs ${tx.status === 'Success' ? 'text-green-500' : 'text-red-500'}`}>{tx.status}</p>
-                  </div>
-               </div>
-            ))}
+            {isLoadingTxns ? (
+                <div className="p-8 text-center text-slate-500">Loading transactions...</div>
+            ) : recentTxns.length === 0 ? (
+                <div className="p-8 text-center text-slate-500">No transactions yet.</div>
+            ) : (
+                recentTxns.map((tx) => {
+                    const Icon = getIconForType(tx.type);
+                    return (
+                    <div key={tx.id} className="p-4 flex items-center justify-between hover:bg-slate-800/50 transition-colors cursor-pointer">
+                        <div className="flex items-center space-x-4">
+                            <div className={`p-2 rounded-full ${tx.type === 'CREDIT' ? 'bg-green-500/10 text-green-500' : 'bg-slate-800 text-slate-400'}`}>
+                                <Icon className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="text-white font-medium">{tx.description || tx.type}</p>
+                                <p className="text-xs text-slate-500">
+                                    {tx.date?.toDate ? tx.date.toDate().toLocaleDateString() : 'Just now'} • {tx.status}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className={`font-bold ${tx.type === 'CREDIT' ? 'text-green-500' : 'text-slate-200'}`}>
+                                {tx.type === 'CREDIT' ? '+' : '-'}₦{tx.amount}
+                            </p>
+                            <p className={`text-xs ${tx.status === 'SUCCESS' ? 'text-green-500' : 'text-red-500'}`}>{tx.status}</p>
+                        </div>
+                    </div>
+                )})
+            )}
          </div>
       </div>
     </div>

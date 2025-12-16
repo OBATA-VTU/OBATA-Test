@@ -1,19 +1,19 @@
-/// <reference types="vite/client" />
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ApiConfig, KeyValuePair } from '../types';
 import { executeApiRequest } from '../services/api'; 
-import { CreditCard, Smartphone, Wifi, Tv, Zap, Check, GraduationCap, Search, Loader2, Wallet, FileText, XCircle } from 'lucide-react';
+import { CreditCard, Check, Search, Loader2, Wallet, FileText, XCircle, ArrowRight } from 'lucide-react';
 
 interface ConnectionFormProps {
   onSubmit: (config: ApiConfig) => void;
   isLoading: boolean;
+  initialService?: string;
 }
 
 type ServiceType = 'AIRTIME' | 'DATA' | 'CABLE' | 'ELECTRICITY' | 'EDUCATION' | 'BALANCE' | 'TRANSACTION';
 
 // Configuration from Env Vars
-const BASE_URL = import.meta.env.VITE_INLOMAX_BASE_URL || 'https://inlomax.com/api';
-const API_KEY = import.meta.env.VITE_INLOMAX_API_KEY || ''; // Fallback empty string if not set
+const BASE_URL = (import.meta as any).env.VITE_INLOMAX_BASE_URL || 'https://inlomax.com/api';
+const API_KEY = (import.meta as any).env.VITE_INLOMAX_API_KEY || '';
 const USE_PROXY = true;
 
 const NETWORKS = [
@@ -25,26 +25,23 @@ const NETWORKS = [
 ];
 
 const DATA_PLANS: Record<string, { id: string; name: string; price: string; validity?: string }[]> = {
-  '1': [ // MTN
+  '1': [
     { id: '202', name: '1GB + 3 mins', price: '488', validity: 'Daily' },
     { id: '203', name: '2.5GB', price: '738', validity: 'Daily' },
-    { id: '210', name: '1GB+5mins', price: '788', validity: 'Weekly' },
     { id: '98', name: '1GB (SME)', price: '590', validity: '30 Days' },
     { id: '16', name: '1GB (CG)', price: '640', validity: '30 Days' },
     { id: '17', name: '2GB (CG)', price: '1360', validity: '30 Days' },
     { id: '18', name: '3GB (CG)', price: '1650', validity: '30 Days' },
     { id: '19', name: '5GB (CG)', price: '2350', validity: '30 Days' },
   ],
-  '3': [ // GLO
+  '3': [
     { id: '36', name: '1GB (CG)', price: '430', validity: '30 Days' },
     { id: '37', name: '2GB (CG)', price: '860', validity: '30 Days' },
     { id: '38', name: '3GB (CG)', price: '1290', validity: '30 Days' },
-    { id: '39', name: '5GB (CG)', price: '2150', validity: '30 Days' },
   ],
-  '2': [ // AIRTEL
+  '2': [
      { id: '331', name: '1GB', price: '789', validity: '7 Days' },
      { id: '300', name: '2GB', price: '1479', validity: '30 Days' },
-     { id: '301', name: '3GB', price: '1972', validity: '30 Days' },
   ],
   '4': [],
   '5': []
@@ -74,9 +71,13 @@ const EXAM_TYPES = [
   { id: '3', name: 'NABTEB - ₦900' },
 ];
 
-export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoading }) => {
-  const [service, setService] = useState<ServiceType>('AIRTIME');
+export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoading, initialService }) => {
+  const [service, setService] = useState<ServiceType>((initialService as ServiceType) || 'AIRTIME');
   
+  useEffect(() => {
+    if (initialService) setService(initialService as ServiceType);
+  }, [initialService]);
+
   // Form Fields
   const [networkId, setNetworkId] = useState('1'); 
   const [phone, setPhone] = useState('');
@@ -99,7 +100,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
   // New Fields for Query
   const [txnReference, setTxnReference] = useState('');
 
-  React.useEffect(() => {
+  useEffect(() => {
     setValidatedName(null);
     setValidationError(null);
   }, [iucNumber, meterNumber, meterType, discoId, service]);
@@ -271,46 +272,8 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
 
   return (
     <div className="space-y-6">
-      {/* Service Selection Tabs */}
-      <div className="flex flex-wrap gap-2 bg-slate-900/50 p-2 rounded-xl border border-slate-700">
-        {[
-          { id: 'BALANCE', icon: Wallet, label: 'Wallet' },
-          { id: 'AIRTIME', icon: Smartphone, label: 'Airtime' },
-          { id: 'DATA', icon: Wifi, label: 'Data' },
-          { id: 'CABLE', icon: Tv, label: 'TV' },
-          { id: 'ELECTRICITY', icon: Zap, label: 'Power' },
-          { id: 'EDUCATION', icon: GraduationCap, label: 'Exam' },
-          { id: 'TRANSACTION', icon: FileText, label: 'History' },
-        ].map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setService(item.id as ServiceType)}
-            className={`flex items-center justify-center space-x-2 px-4 py-3 rounded-lg transition-all duration-200 flex-grow lg:flex-grow-0 ${
-              service === item.id 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-                : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
-            }`}
-          >
-            <item.icon className="w-4 h-4" />
-            <span className="text-xs font-bold uppercase tracking-wide">{item.label}</span>
-          </button>
-        ))}
-      </div>
-
-      <form onSubmit={handleSubmit} className="space-y-5 bg-slate-800/50 p-6 rounded-2xl border border-slate-700">
-        {/* Dynamic Form Fields (Same as before) */}
+      <form onSubmit={handleSubmit} className="space-y-5">
         <div className="min-h-[200px]">
-          {service === 'BALANCE' && (
-            <div className="flex flex-col items-center justify-center h-48 text-center text-slate-400">
-               <div className="w-16 h-16 bg-slate-700 rounded-full flex items-center justify-center mb-4">
-                  <Wallet className="w-8 h-8 text-blue-400" />
-               </div>
-               <h3 className="text-lg font-medium text-white mb-2">Check Wallet Balance</h3>
-               <p className="text-sm max-w-xs">View your current available balance for transactions.</p>
-            </div>
-          )}
-
           {service === 'AIRTIME' && (
              <div className="space-y-5 animate-fade-in-up">
                 <div className="space-y-2">
@@ -484,15 +447,6 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
                 </div>
              </div>
           )}
-
-          {service === 'TRANSACTION' && (
-             <div className="space-y-5 animate-fade-in-up">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Transaction Reference ID</label>
-                  <input type="text" value={txnReference} onChange={e => setTxnReference(e.target.value)} placeholder="Enter transaction ID..." className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 font-mono" />
-                </div>
-             </div>
-          )}
         </div>
 
         {/* Submit Button */}
@@ -520,6 +474,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
                  service === 'TRANSACTION' ? 'Verify Status' :
                  'Confirm Purchase'}
               </span>
+              <ArrowRight className="w-5 h-5 ml-1" />
             </>
           )}
         </button>

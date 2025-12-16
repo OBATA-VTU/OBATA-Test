@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { PiggyBank, TrendingUp, Lock, ArrowRight, ShieldCheck } from 'lucide-react';
+import { PiggyBank, TrendingUp, Lock, ShieldCheck } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export const SavingsPage: React.FC = () => {
+  const { userProfile } = useAuth();
   const [saveAmount, setSaveAmount] = useState('');
   const [duration, setDuration] = useState('30');
 
+  // Use real data or default to 0 to avoid fake information
+  const savingsBalance = 0; 
+
   // Interest Logic: 0.20 naira per day for every 500 naira
-  // Daily Interest = (Amount / 500) * 0.20
-  // Total Interest = Daily Interest * Duration
   const amountNum = parseFloat(saveAmount) || 0;
   const dailyInterest = (amountNum / 500) * 0.20;
   const totalInterest = dailyInterest * parseFloat(duration);
@@ -25,7 +28,7 @@ export const SavingsPage: React.FC = () => {
                 <span className="bg-green-500 text-white px-2 py-0.5 rounded text-xs font-bold">+15% p.a</span>
              </div>
              <p className="text-purple-200">Total Savings Balance</p>
-             <h1 className="text-5xl font-bold mb-6">₦15,000.00</h1>
+             <h1 className="text-5xl font-bold mb-6">₦{savingsBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h1>
              <div className="flex gap-4">
                 <button className="bg-white text-purple-700 px-6 py-3 rounded-xl font-bold hover:bg-purple-50 transition-colors shadow-lg">
                    + Quick Save

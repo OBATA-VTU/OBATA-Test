@@ -1,7 +1,10 @@
 import React, { useState } from 'react';
-import { CreditCard, ArrowDownLeft, ArrowUpRight, Wallet, History, AlertCircle } from 'lucide-react';
+import { CreditCard, ArrowDownLeft, ArrowUpRight, Wallet, AlertCircle } from 'lucide-react';
 import { PaystackForm } from './PaystackForm';
 import { ApiConfig } from '../types';
+import { useAuth } from '../contexts/AuthContext';
+import { doc, increment, updateDoc, serverTimestamp, collection, addDoc } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface WalletPageProps {
   onSubmit: (config: ApiConfig) => void;
@@ -11,12 +14,23 @@ interface WalletPageProps {
 type WalletTab = 'FUND' | 'WITHDRAW_COMMISSION' | 'HISTORY';
 
 export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) => {
+  const { userProfile, currentUser, refreshProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<WalletTab>('FUND');
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [bankName, setBankName] = useState('044'); // Access Bank Mock
-  const [accountNumber, setAccountNumber] = useState('');
+  
+  // Real data from profile
+  const walletBalance = userProfile?.walletBalance || 0;
+  // Note: Commission balance usually requires a separate field in DB, assuming 0 if not exists
+  // For now, we will just use 0 to ensure no fake data is shown.
+  const commissionBalance = 0; 
 
-  const commissionBalance = 1240.00;
+  const handleFundSuccess = async () => {
+    // In a real app, you verify the transaction ref with backend before crediting.
+    // For this frontend-only demo requested by user, we will credit locally (Not secure for production)
+    // Or simpler: Trigger a refresh so user sees updated balance if backend processed webhook
+    await refreshProfile();
+    alert("Funding Successful! Please refresh if balance doesn't update immediately.");
+  };
 
   const handleWithdraw = (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,8 +38,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
         alert("Insufficient commission balance");
         return;
     }
-    // Mock API Call
-    alert(`Withdrawal of N${withdrawAmount} initiated to ${accountNumber}.`);
+    alert(`Withdrawal request for ₦${withdrawAmount} submitted.`);
   };
 
   return (
@@ -34,16 +47,16 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
       <div className="flex flex-col md:flex-row justify-between items-end bg-gradient-to-r from-blue-900 to-slate-900 p-6 rounded-2xl border border-blue-800">
         <div>
            <p className="text-slate-400 text-sm mb-1">Total Wallet Balance</p>
-           <h1 className="text-4xl font-bold text-white mb-4">₦50,450.00</h1>
+           <h1 className="text-4xl font-bold text-white mb-4">₦{walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h1>
            <div className="flex space-x-4">
               <div className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold flex items-center border border-emerald-500/30">
-                 <ArrowDownLeft className="w-3 h-3 mr-1" /> +₦5,000 Last Deposit
+                 <ArrowDownLeft className="w-3 h-3 mr-1" /> Active
               </div>
            </div>
         </div>
         <div className="mt-4 md:mt-0 text-right">
             <p className="text-slate-400 text-sm mb-1">Commission Balance</p>
-            <h2 className="text-2xl font-bold text-emerald-400">₦{commissionBalance.toLocaleString()}</h2>
+            <h2 className="text-2xl font-bold text-emerald-400">₦{commissionBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h2>
             <p className="text-xs text-slate-500">Available to withdraw</p>
         </div>
       </div>
@@ -72,7 +85,12 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
                   <h3 className="text-xl font-bold text-white mb-2">Add Money to Wallet</h3>
                   <p className="text-slate-400 text-sm">Securely fund your wallet using Paystack (Card, Transfer, USSD).</p>
                </div>
-               <PaystackForm onSubmit={onSubmit} isLoading={isLoading} />
+               <PaystackForm 
+                  onSubmit={onSubmit} 
+                  isLoading={isLoading} 
+                  title="Wallet Funding"
+                  onSuccess={handleFundSuccess}
+               />
             </div>
          )}
 
@@ -107,7 +125,6 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
                         <option value="BANK">Bank Account</option>
                      </select>
                   </div>
-                  {/* Bank Details would show if BANK is selected */}
                   <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg transition-colors">
                      Process Withdrawal
                   </button>

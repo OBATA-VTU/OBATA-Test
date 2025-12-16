@@ -1,16 +1,37 @@
-import React, { useState } from 'react';
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Loader2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 export const HistoryPage: React.FC = () => {
+  const { currentUser } = useAuth();
   const [filter, setFilter] = useState('ALL');
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const transactions = [
-    { id: 'TXN10239', service: 'MTN 1GB SME', amount: '-₦250.00', date: '2023-10-24 10:30 AM', status: 'SUCCESS', type: 'DEBIT' },
-    { id: 'TXN10240', service: 'Wallet Funding', amount: '+₦5,000.00', date: '2023-10-23 04:15 PM', status: 'SUCCESS', type: 'CREDIT' },
-    { id: 'TXN10241', service: 'Airtel VTU 500', amount: '-₦500.00', date: '2023-10-22 09:30 AM', status: 'FAILED', type: 'DEBIT' },
-    { id: 'TXN10242', service: 'Ikeja Electric', amount: '-₦2,500.00', date: '2023-10-20 07:12 PM', status: 'SUCCESS', type: 'DEBIT' },
-    { id: 'TXN10243', service: 'GOTV Jinja', amount: '-₦3,900.00', date: '2023-10-19 12:00 PM', status: 'SUCCESS', type: 'DEBIT' },
-  ];
+  useEffect(() => {
+      const fetchTransactions = async () => {
+          if (!currentUser) return;
+          try {
+              const q = query(
+                  collection(db, 'transactions'),
+                  where('userId', '==', currentUser.uid),
+                  orderBy('date', 'desc'),
+                  limit(20)
+              );
+              const snapshot = await getDocs(q);
+              const txns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              setTransactions(txns);
+          } catch (error) {
+              console.error("Error fetching history", error);
+              setTransactions([]);
+          } finally {
+              setIsLoading(false);
+          }
+      };
+      fetchTransactions();
+  }, [currentUser]);
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -26,7 +47,16 @@ export const HistoryPage: React.FC = () => {
           </div>
        </div>
 
-       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+       <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl min-h-[300px]">
+          {isLoading ? (
+              <div className="flex items-center justify-center h-48 text-slate-500">
+                  <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading records...
+              </div>
+          ) : transactions.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 text-slate-500">
+                  <p>No transactions found.</p>
+              </div>
+          ) : (
           <div className="overflow-x-auto">
              <table className="w-full text-left border-collapse">
                 <thead>
@@ -41,11 +71,11 @@ export const HistoryPage: React.FC = () => {
                 <tbody className="divide-y divide-slate-800 text-sm">
                    {transactions.map((txn) => (
                       <tr key={txn.id} className="hover:bg-slate-800/50 transition-colors">
-                         <td className="p-4 font-mono text-slate-500">{txn.id}</td>
-                         <td className="p-4 font-medium text-white">{txn.service}</td>
-                         <td className="p-4 text-slate-400">{txn.date}</td>
+                         <td className="p-4 font-mono text-slate-500">{txn.id.substring(0,8)}...</td>
+                         <td className="p-4 font-medium text-white">{txn.description || txn.type}</td>
+                         <td className="p-4 text-slate-400">{txn.date?.toDate ? txn.date.toDate().toLocaleDateString() : 'N/A'}</td>
                          <td className={`p-4 font-bold ${txn.type === 'CREDIT' ? 'text-green-500' : 'text-slate-200'}`}>
-                            {txn.amount}
+                            {txn.type === 'CREDIT' ? '+' : '-'}₦{txn.amount}
                          </td>
                          <td className="p-4">
                             <span className={`px-2 py-1 rounded text-xs font-bold ${
@@ -60,6 +90,7 @@ export const HistoryPage: React.FC = () => {
                 </tbody>
              </table>
           </div>
+          )}
           <div className="p-4 border-t border-slate-800 flex justify-center">
              <button className="text-sm text-blue-500 hover:text-blue-400 font-medium">Load More Records</button>
           </div>
