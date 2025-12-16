@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Smartphone, Zap, Wifi, Tv, ShieldCheck, CreditCard, ArrowRight, Star, Clock, CheckCircle, Users, HelpCircle, ChevronDown, Award } from 'lucide-react';
+import { Logo } from './Logo';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -36,7 +37,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             <div className="flex items-center space-x-3">
-              <img src="/logo.png" alt="Obata Logo" className="w-10 h-10 object-contain rounded-full bg-white/10 p-1" />
+              <Logo className="h-10 w-10" />
               <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-amber-400">
                 OBATA VTU
               </span>
@@ -363,7 +364,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                 <div className="col-span-1 md:col-span-1">
                     <div className="flex items-center space-x-2 mb-6">
-                        <img src="/logo.png" alt="Obata Logo" className="w-8 h-8 rounded-full" />
+                        <Logo className="h-8 w-8" showRing={false} />
                         <span className="text-xl font-bold text-white">OBATA VTU</span>
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed mb-6">
