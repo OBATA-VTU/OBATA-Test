@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, ArrowUpRight, ArrowDownLeft, Download, Loader2, AlertCircle } from 'lucide-react';
+import { Search, Filter, Loader2, AlertCircle, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { db, isFirebaseInitialized } from '../services/firebase';
 
-export const HistoryPage: React.FC = () => {
+interface HistoryPageProps {
+    onTransactionClick?: (txn: any) => void;
+}
+
+export const HistoryPage: React.FC<HistoryPageProps> = ({ onTransactionClick }) => {
   const { currentUser } = useAuth();
-  const [filter, setFilter] = useState('ALL');
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [indexErrorLink, setIndexErrorLink] = useState<string | null>(null);
@@ -14,8 +17,18 @@ export const HistoryPage: React.FC = () => {
   useEffect(() => {
       const fetchTransactions = async () => {
           if (!currentUser) return;
+
+          if (!isFirebaseInitialized) {
+              setTransactions([
+                  { id: 'mock-hist-1', type: 'FUNDING', description: 'Wallet Funding', amount: 50000, status: 'SUCCESS', date: { toDate: () => new Date() }, reference: 'PAY-123' },
+                  { id: 'mock-hist-2', type: 'DATA', description: 'MTN 1GB SME', amount: 250, status: 'SUCCESS', date: { toDate: () => new Date(Date.now() - 86400000) }, reference: 'DAT-456' },
+                  { id: 'mock-hist-3', type: 'AIRTIME', description: 'Airtel VTU', amount: 100, status: 'FAILED', date: { toDate: () => new Date(Date.now() - 172800000) }, reference: 'AIR-789' }
+              ]);
+              setIsLoading(false);
+              return;
+          }
+
           try {
-              // This Query requires a Composite Index in Firestore
               const q = query(
                   collection(db, 'transactions'),
                   where('userId', '==', currentUser.uid),
@@ -27,15 +40,9 @@ export const HistoryPage: React.FC = () => {
               setTransactions(txns);
           } catch (error: any) {
               console.error("Error fetching history", error);
-              
-              // Handle Missing Index Error Specific to Firebase
               if (error.code === 'failed-precondition' && error.message.includes('index')) {
-                  console.warn("MISSING INDEX: Click the link below to create it in Firebase Console:");
                   const match = error.message.match(/https:\/\/console\.firebase\.google\.com\/[^\s]*/);
-                  if (match) {
-                      console.log(match[0]);
-                      setIndexErrorLink(match[0]);
-                  }
+                  if (match) setIndexErrorLink(match[0]);
               }
               setTransactions([]);
           } finally {
@@ -63,8 +70,7 @@ export const HistoryPage: React.FC = () => {
                <AlertCircle className="w-5 h-5 flex-shrink-0" />
                <div>
                    <p className="font-bold">System Maintenance Required</p>
-                   <p className="mb-2">The transaction history index is being built. If you are the developer, <a href={indexErrorLink} target="_blank" rel="noreferrer" className="underline text-amber-400 font-bold">click here</a> to create the index.</p>
-                   <p className="text-xs opacity-70">If you are a user, please check back in 5 minutes.</p>
+                   <p className="mb-2">Index missing. <a href={indexErrorLink} target="_blank" rel="noreferrer" className="underline text-amber-400 font-bold">Create Index</a></p>
                </div>
            </div>
        )}
@@ -88,12 +94,13 @@ export const HistoryPage: React.FC = () => {
                       <th className="p-4 border-b border-slate-800">Date</th>
                       <th className="p-4 border-b border-slate-800">Amount</th>
                       <th className="p-4 border-b border-slate-800">Status</th>
+                      <th className="p-4 border-b border-slate-800 text-right">Receipt</th>
                    </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800 text-sm">
                    {transactions.map((txn) => (
-                      <tr key={txn.id} className="hover:bg-slate-800/50 transition-colors">
-                         <td className="p-4 font-mono text-slate-500">{txn.id.substring(0,8)}...</td>
+                      <tr key={txn.id} onClick={() => onTransactionClick && onTransactionClick(txn)} className="hover:bg-slate-800/50 transition-colors cursor-pointer group">
+                         <td className="p-4 font-mono text-slate-500 group-hover:text-blue-400">{txn.reference || txn.id.substring(0,8)}</td>
                          <td className="p-4 font-medium text-white">{txn.description || txn.type}</td>
                          <td className="p-4 text-slate-400">{txn.date?.toDate ? txn.date.toDate().toLocaleDateString() : 'N/A'}</td>
                          <td className={`p-4 font-bold ${txn.type === 'CREDIT' ? 'text-green-500' : 'text-slate-200'}`}>
@@ -107,16 +114,14 @@ export const HistoryPage: React.FC = () => {
                                {txn.status}
                             </span>
                          </td>
+                         <td className="p-4 text-right">
+                             <FileText className="w-4 h-4 text-slate-500 hover:text-white inline-block" />
+                         </td>
                       </tr>
                    ))}
                 </tbody>
              </table>
           </div>
-          )}
-          {transactions.length > 0 && (
-            <div className="p-4 border-t border-slate-800 flex justify-center">
-                <button className="text-sm text-blue-500 hover:text-blue-400 font-medium">Load More Records</button>
-            </div>
           )}
        </div>
     </div>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PiggyBank, TrendingUp, Lock, ShieldCheck, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
+import { PiggyBank, TrendingUp, Lock, ShieldCheck, ArrowLeft, Loader2, Play, Wallet } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { doc, runTransaction, serverTimestamp, increment, collection } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -9,15 +9,12 @@ export const SavingsPage: React.FC = () => {
   const [saveAmount, setSaveAmount] = useState('');
   const [duration, setDuration] = useState('30');
   const [loading, setLoading] = useState(false);
-  const [view, setView] = useState<'DASHBOARD' | 'WITHDRAW'>('DASHBOARD');
+  const [subView, setSubView] = useState<'MAIN' | 'WITHDRAW'>('MAIN');
   const [withdrawAmount, setWithdrawAmount] = useState('');
 
-  // Access dynamic field, defaulting to 0
-  // @ts-ignore
   const savingsBalance = userProfile?.savingsBalance || 0;
   const walletBalance = userProfile?.walletBalance || 0;
 
-  // Interest Logic: 0.20 naira per day for every 500 naira
   const amountNum = parseFloat(saveAmount) || 0;
   const dailyInterest = (amountNum / 500) * 0.20;
   const totalInterest = dailyInterest * parseFloat(duration);
@@ -25,18 +22,13 @@ export const SavingsPage: React.FC = () => {
 
   const handleCreateSavings = async () => {
      if (!currentUser) return;
-     if (amountNum < 100) {
-         alert("Minimum savings amount is ₦100");
-         return;
-     }
-     if (amountNum > walletBalance) {
-         alert("Insufficient wallet balance.");
-         return;
-     }
+     if (amountNum < 100) return alert("Minimum savings amount is ₦100");
+     if (amountNum > walletBalance) return alert("Insufficient wallet balance.");
 
-     if (!confirm(`Confirm savings of ₦${amountNum} for ${duration} days? This will be deducted from your main wallet.`)) return;
+     if (!confirm(`Confirm savings of ₦${amountNum} for ${duration} days?`)) return;
 
      setLoading(true);
+
      try {
          await runTransaction(db, async (transaction) => {
              const userRef = doc(db, 'users', currentUser.uid);
@@ -44,15 +36,15 @@ export const SavingsPage: React.FC = () => {
              if (!userDoc.exists()) throw "User does not exist";
 
              const currentWallet = userDoc.data().walletBalance || 0;
-             if (currentWallet < amountNum) throw "Insufficient funds";
+             if (currentWallet < amountNum) throw "Insufficient funds in wallet";
 
-             // Deduct from Wallet
+             // Deduct from Main Wallet, Add to Savings
              transaction.update(userRef, { 
                  walletBalance: increment(-amountNum),
                  savingsBalance: increment(amountNum)
              });
 
-             // Create Transaction Record
+             // Log Transaction
              const txnRef = doc(collection(db, 'transactions'));
              transaction.set(txnRef, {
                  userId: currentUser.uid,
@@ -60,13 +52,19 @@ export const SavingsPage: React.FC = () => {
                  amount: amountNum,
                  description: `Kolo Savings Deposit (${duration} Days)`,
                  status: 'SUCCESS',
-                 date: serverTimestamp()
+                 date: serverTimestamp(),
+                 savingsDetails: {
+                     principal: amountNum,
+                     interest: totalInterest,
+                     duration: Number(duration),
+                     maturityDate: new Date(Date.now() + Number(duration) * 86400000)
+                 }
              });
          });
 
          await refreshProfile();
          setSaveAmount('');
-         alert("Savings Plan Created Successfully! Funds moved to Kolo.");
+         alert("Savings Plan Created Successfully! Your money is now growing.");
      } catch (e: any) {
          alert("Failed to save: " + e.message);
      } finally {
@@ -77,27 +75,21 @@ export const SavingsPage: React.FC = () => {
   const handleWithdrawSavings = async () => {
       if (!currentUser) return;
       const amt = parseFloat(withdrawAmount);
-      if (isNaN(amt) || amt <= 0) {
-          alert("Invalid amount");
-          return;
-      }
-      if (amt > savingsBalance) {
-          alert("Insufficient savings balance");
-          return;
-      }
+      if (isNaN(amt) || amt <= 0) return alert("Invalid amount");
+      if (amt > savingsBalance) return alert("Insufficient savings balance");
 
       setLoading(true);
+
       try {
            await runTransaction(db, async (transaction) => {
              const userRef = doc(db, 'users', currentUser.uid);
              
-             // Move from Savings to Wallet
+             // Move Principal to Main Wallet
              transaction.update(userRef, { 
                  savingsBalance: increment(-amt),
                  walletBalance: increment(amt)
              });
 
-             // Create Transaction Record
              const txnRef = doc(collection(db, 'transactions'));
              transaction.set(txnRef, {
                  userId: currentUser.uid,
@@ -110,7 +102,7 @@ export const SavingsPage: React.FC = () => {
          });
          await refreshProfile();
          setWithdrawAmount('');
-         setView('DASHBOARD');
+         setSubView('MAIN');
          alert("Withdrawal Successful! Funds moved to Main Wallet.");
       } catch (e: any) {
           alert("Error: " + e.message);
@@ -119,13 +111,16 @@ export const SavingsPage: React.FC = () => {
       }
   };
 
-  if (view === 'WITHDRAW') {
+  if (subView === 'WITHDRAW') {
       return (
           <div className="max-w-md mx-auto space-y-6 animate-fade-in-up">
-              <button onClick={() => setView('DASHBOARD')} className="flex items-center text-slate-400 hover:text-white mb-4">
-                  <ArrowLeft className="w-4 h-4 mr-2" /> Back to Savings
+              <button 
+                onClick={() => setSubView('MAIN')} 
+                className="flex items-center text-slate-400 hover:text-white mb-4 transition-colors"
+              >
+                  <ArrowLeft className="w-4 h-4 mr-2" /> Back to Savings Home
               </button>
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl">
                   <h2 className="text-2xl font-bold text-white mb-6">Withdraw Savings</h2>
                   <div className="bg-purple-900/20 p-4 rounded-xl mb-6 border border-purple-500/30">
                       <p className="text-slate-400 text-sm">Available Savings</p>
@@ -139,16 +134,16 @@ export const SavingsPage: React.FC = () => {
                             type="number" 
                             value={withdrawAmount} 
                             onChange={(e) => setWithdrawAmount(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white font-bold"
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white font-bold focus:border-purple-500"
                             placeholder="0.00"
                           />
                       </div>
                       <button 
                         onClick={handleWithdrawSavings}
                         disabled={loading}
-                        className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg flex items-center justify-center"
+                        className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg flex items-center justify-center transition-all shadow-lg shadow-purple-900/50"
                       >
-                          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Withdrawal'}
+                          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Withdrawal to Wallet'}
                       </button>
                   </div>
               </div>
@@ -165,32 +160,32 @@ export const SavingsPage: React.FC = () => {
           <div className="relative z-10">
              <div className="flex items-center space-x-2 mb-2">
                 <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">Obata Kolo</span>
-                <span className="bg-green-500 text-white px-2 py-0.5 rounded text-xs font-bold">+15% p.a</span>
+                <span className="bg-green-500 text-white px-2 py-0.5 rounded text-xs font-bold">+15% p.a Interest</span>
              </div>
              <p className="text-purple-200">Total Savings Balance</p>
              <h1 className="text-5xl font-bold mb-6">₦{savingsBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h1>
              <div className="flex gap-4">
                 <button 
                     onClick={() => document.getElementById('savings-input')?.focus()}
-                    className="bg-white text-purple-700 px-6 py-3 rounded-xl font-bold hover:bg-purple-50 transition-colors shadow-lg"
+                    className="bg-white text-purple-700 px-6 py-3 rounded-xl font-bold hover:bg-purple-50 transition-colors shadow-lg flex items-center"
                 >
-                   + Quick Save
+                   <Play className="w-4 h-4 mr-2 fill-current" /> Quick Save
                 </button>
                 <button 
-                    onClick={() => setView('WITHDRAW')}
-                    className="bg-purple-900/50 text-white border border-white/20 px-6 py-3 rounded-xl font-bold hover:bg-purple-900/70 transition-colors"
+                    onClick={() => setSubView('WITHDRAW')}
+                    className="bg-purple-900/50 text-white border border-white/20 px-6 py-3 rounded-xl font-bold hover:bg-purple-900/70 transition-colors flex items-center"
                 >
-                   Withdraw
+                   <Wallet className="w-4 h-4 mr-2" /> Withdraw
                 </button>
              </div>
           </div>
        </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Calculator */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+          {/* Calculator / Input */}
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-lg">
              <h3 className="text-xl font-bold text-white mb-4 flex items-center">
-                <TrendingUp className="w-5 h-5 mr-2 text-pink-500" /> Interest Calculator
+                <TrendingUp className="w-5 h-5 mr-2 text-pink-500" /> Start Saving
              </h3>
              <div className="space-y-4">
                 <div>
@@ -200,7 +195,7 @@ export const SavingsPage: React.FC = () => {
                       type="number" 
                       value={saveAmount} 
                       onChange={(e) => setSaveAmount(e.target.value)} 
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-lg font-bold focus:border-pink-500" 
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-lg font-bold focus:border-pink-500 transition-colors" 
                       placeholder="5000"
                    />
                 </div>
@@ -209,7 +204,7 @@ export const SavingsPage: React.FC = () => {
                    <select 
                       value={duration} 
                       onChange={(e) => setDuration(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-pink-500 transition-colors"
                    >
                       <option value="7">7 Days</option>
                       <option value="30">30 Days</option>
@@ -232,42 +227,43 @@ export const SavingsPage: React.FC = () => {
                       <span className="text-slate-300 font-bold">Total Return</span>
                       <span className="text-2xl font-bold text-white">₦{totalReturn.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
                    </div>
+                   <p className="text-xs text-slate-500 mt-2 italic">Funds are deducted from your Main Wallet.</p>
                 </div>
 
                 <button 
                     onClick={handleCreateSavings}
                     disabled={loading || amountNum <= 0}
-                    className="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition-colors shadow-lg shadow-pink-600/20 flex items-center justify-center"
+                    className="w-full bg-pink-600 hover:bg-pink-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-pink-600/20 flex items-center justify-center active:scale-[0.98]"
                 >
                    {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Savings Plan'}
                 </button>
              </div>
           </div>
-
-          {/* Info */}
+          
+           {/* Info */}
           <div className="space-y-6">
-             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 h-full">
                 <h3 className="text-white font-bold mb-4">Why Save with Kolo?</h3>
-                <div className="space-y-4">
-                   <div className="flex items-start space-x-3">
-                      <div className="bg-pink-500/10 p-2 rounded-lg"><Lock className="w-5 h-5 text-pink-500" /></div>
+                <div className="space-y-6">
+                   <div className="flex items-start space-x-4">
+                      <div className="bg-pink-500/10 p-3 rounded-xl"><Lock className="w-6 h-6 text-pink-500" /></div>
                       <div>
-                         <h4 className="text-white font-bold text-sm">Disciplined Savings</h4>
-                         <p className="text-xs text-slate-400">Funds are locked for the duration you choose to prevent impulse spending.</p>
+                         <h4 className="text-white font-bold text-base">Disciplined Savings</h4>
+                         <p className="text-sm text-slate-400 mt-1">Funds are safely locked. You can only withdraw to your main wallet.</p>
                       </div>
                    </div>
-                   <div className="flex items-start space-x-3">
-                      <div className="bg-green-500/10 p-2 rounded-lg"><TrendingUp className="w-5 h-5 text-green-500" /></div>
+                   <div className="flex items-start space-x-4">
+                      <div className="bg-green-500/10 p-3 rounded-xl"><TrendingUp className="w-6 h-6 text-green-500" /></div>
                       <div>
-                         <h4 className="text-white font-bold text-sm">Daily Interest</h4>
-                         <p className="text-xs text-slate-400">Earn ₦0.20 daily for every ₦500. Interest is paid automatically.</p>
+                         <h4 className="text-white font-bold text-base">Compound Growth</h4>
+                         <p className="text-sm text-slate-400 mt-1">Watch your money grow daily. Perfect for short-term goals or emergency funds.</p>
                       </div>
                    </div>
-                   <div className="flex items-start space-x-3">
-                      <div className="bg-blue-500/10 p-2 rounded-lg"><ShieldCheck className="w-5 h-5 text-blue-500" /></div>
+                   <div className="flex items-start space-x-4">
+                      <div className="bg-blue-500/10 p-3 rounded-xl"><ShieldCheck className="w-6 h-6 text-blue-500" /></div>
                       <div>
-                         <h4 className="text-white font-bold text-sm">Bank Grade Security</h4>
-                         <p className="text-xs text-slate-400">Your savings are invested in secure low-risk instruments.</p>
+                         <h4 className="text-white font-bold text-base">Bank Grade Security</h4>
+                         <p className="text-sm text-slate-400 mt-1">Your savings are backed by 100% reserve guarantee.</p>
                       </div>
                    </div>
                 </div>

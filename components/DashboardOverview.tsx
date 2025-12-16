@@ -28,6 +28,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   useEffect(() => {
       const fetchRecentTxns = async () => {
           if (!currentUser) return;
+
           try {
               const q = query(
                   collection(db, 'transactions'),
@@ -39,8 +40,8 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
               const txns = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
               setRecentTxns(txns);
           } catch (error) {
+              // Fail silently or show generic list
               console.error("Error fetching transactions", error);
-              // Fallback for demo if no collection exists yet
               setRecentTxns([]);
           } finally {
               setIsLoadingTxns(false);
@@ -50,10 +51,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
   }, [currentUser]);
 
   const getIconForType = (type: string) => {
-      if (type?.includes('Data')) return Wifi;
-      if (type?.includes('Airtime')) return Smartphone;
-      if (type?.includes('Electric') || type?.includes('Bill')) return Zap;
-      if (type?.includes('Funding')) return CreditCard;
+      if (type?.includes('Data') || type === 'DATA') return Wifi;
+      if (type?.includes('Airtime') || type === 'AIRTIME') return Smartphone;
+      if (type?.includes('Electric') || type === 'ELECTRICITY') return Zap;
+      if (type?.includes('Funding') || type === 'FUNDING') return CreditCard;
       return CreditCard;
   };
 
@@ -65,19 +66,19 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
       }
   };
 
-  // Safe access for savingsBalance since it might not be in the initial UserProfile interface but we are adding it dynamically
-  // @ts-ignore
   const savingsBalance = userProfile?.savingsBalance || 0;
-  // @ts-ignore
   const commissionBalance = userProfile?.commissionBalance || 0;
+  
+  // Use the exact username from profile
+  const userNameDisplay = userProfile?.username || 'Member';
 
   return (
     <div className="space-y-8 animate-fade-in-up">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white">{greeting}, <span className="text-blue-500 capitalize">{userProfile?.username || userProfile?.email?.split('@')[0] || 'User'}</span></h1>
-          <p className="text-slate-400">Welcome back to your dashboard.</p>
+          <h1 className="text-3xl font-bold text-white">{greeting}, <span className="text-blue-500 capitalize">{userNameDisplay}</span></h1>
+          <p className="text-slate-400">Welcome to your dashboard.</p>
         </div>
         <div className="flex items-center space-x-3 bg-slate-900/50 p-2 rounded-lg border border-slate-800 cursor-pointer hover:border-amber-500/50 transition-colors" onClick={handleUpgradeClick}>
            <div className="bg-amber-500/10 p-2 rounded-full">
@@ -178,7 +179,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({ onNavigate
             {isLoadingTxns ? (
                 <div className="p-8 text-center text-slate-500">Loading transactions...</div>
             ) : recentTxns.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">No transactions yet.</div>
+                <div className="p-8 text-center text-slate-500">No transactions found.</div>
             ) : (
                 recentTxns.map((tx) => {
                     const Icon = getIconForType(tx.type);

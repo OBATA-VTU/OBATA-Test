@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { auth, db } from '../services/firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { User, onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot, getDoc } from 'firebase/firestore';
+import { auth, db, isFirebaseInitialized } from '../services/firebase';
 
 // Updated Schema based on user's database
 export interface UserProfile {
@@ -9,8 +9,10 @@ export interface UserProfile {
   email: string | null;
   username?: string;
   isReseller: boolean;
-  isAdmin?: boolean; // Added for Admin Panel protection
+  isAdmin?: boolean; 
   walletBalance: number;
+  savingsBalance?: number;
+  commissionBalance?: number;
   referralCode: string;
   referredBy: string | null;
   createdAt: any; 
@@ -46,64 +48,62 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchUserProfile = async (uid: string) => {
-    try {
-      const docRef = doc(db, 'users', uid);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setUserProfile({
-            uid: data.uid,
-            email: data.email,
-            username: data.username,
-            isReseller: data.isReseller ?? false,
-            isAdmin: data.isAdmin ?? false, // Check for admin status
-            walletBalance: data.walletBalance ?? 0,
-            referralCode: data.referralCode,
-            referredBy: data.referredBy,
-            createdAt: data.createdAt,
-            apiKey: data.apiKey || '',
-            photoURL: data.photoURL || null,
-            transactionPin: data.transactionPin || '0000',
-            emailNotificationsEnabled: data.emailNotificationsEnabled ?? true,
-            hasFunded: data.hasFunded ?? false,
-            hasMadePurchase: data.hasMadePurchase ?? false,
-            totalPurchaseValue: data.totalPurchaseValue ?? 0
+  useEffect(() => {
+    // PREVENT CRASH: Check if firebase is initialized before using SDK
+    if (!isFirebaseInitialized) {
+        console.log("Running in offline mode (No Firebase Keys)");
+        setLoading(false);
+        return;
+    }
+
+    // Real-time listener for Auth State
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      
+      if (user) {
+        // Real-time listener for User Profile in Firestore
+        const userRef = doc(db, 'users', user.uid);
+        const unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            setUserProfile(docSnap.data() as UserProfile);
+          } else {
+            console.log("No user profile found");
+            setUserProfile(null);
+          }
+          setLoading(false);
+        }, (error) => {
+          console.error("Error fetching user profile:", error);
+          setLoading(false);
         });
+
+        return () => unsubscribeSnapshot();
+      } else {
+        setUserProfile(null);
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching user profile:", error);
+    });
+
+    return () => unsubscribeAuth();
+  }, []);
+
+  const refreshProfile = async () => {
+    if (!isFirebaseInitialized || !currentUser) return;
+    
+    // With onSnapshot, manual refresh is rarely needed, but kept for compatibility
+    if (currentUser) {
+       const userRef = doc(db, 'users', currentUser.uid);
+       const docSnap = await getDoc(userRef);
+       if (docSnap.exists()) {
+         setUserProfile(docSnap.data() as UserProfile);
+       }
     }
   };
 
   const updateRole = async (isReseller: boolean) => {
-    if (!currentUser || !userProfile) return;
-    try {
-      const docRef = doc(db, 'users', currentUser.uid);
-      await setDoc(docRef, { isReseller: isReseller }, { merge: true });
-      setUserProfile({ ...userProfile, isReseller: isReseller });
-    } catch (error) {
-      console.error("Error updating role:", error);
-      throw error;
+    // This serves as a local optimistic update, but Firestore listener will correct it
+    if (userProfile) {
+        setUserProfile({ ...userProfile, isReseller });
     }
-  };
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setCurrentUser(user);
-      if (user) {
-        await fetchUserProfile(user.uid);
-      } else {
-        setUserProfile(null);
-      }
-      setLoading(false);
-    });
-
-    return unsubscribe;
-  }, []);
-
-  const refreshProfile = async () => {
-    if (currentUser) await fetchUserProfile(currentUser.uid);
   };
 
   return (

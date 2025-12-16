@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { Smartphone, Zap, Tv, LogIn, ArrowRight, LayoutDashboard, Wallet, PiggyBank, History, Award, Code, User, Menu, X, Bell, LogOut, Lock } from 'lucide-react';
+import { Smartphone, Zap, Tv, LogIn, ArrowRight, LayoutDashboard, Wallet, PiggyBank, History, Award, Code, User, Menu, X, Bell, LogOut, Lock, Gift, Users, ListOrdered } from 'lucide-react';
 import { Logo } from './Logo';
 import { useAuth } from '../contexts/AuthContext';
-import { signOut } from 'firebase/auth';
-import { auth } from '../services/firebase';
 
-export type PageView = 'LANDING' | 'DASHBOARD' | 'PRIVACY' | 'TERMS' | 'ABOUT' | 'SUPPORT';
-export type DashboardTab = 'OVERVIEW' | 'SERVICES' | 'WALLET' | 'SAVINGS' | 'HISTORY' | 'RESELLER' | 'REWARDS' | 'API' | 'PROFILE' | 'ADMIN';
+export type PageView = 'LANDING' | 'DASHBOARD' | 'PRIVACY' | 'TERMS' | 'ABOUT' | 'SUPPORT' | 'PRICING_PUBLIC';
+export type DashboardTab = 'OVERVIEW' | 'SERVICES' | 'WALLET' | 'SAVINGS' | 'HISTORY' | 'RESELLER' | 'REWARDS' | 'REFERRALS' | 'API' | 'PROFILE' | 'ADMIN';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,10 +25,10 @@ export const Layout: React.FC<LayoutProps> = ({
   const { currentUser, userProfile } = useAuth();
 
   const handleLogout = async () => {
-      await signOut(auth);
       onNavigate('LANDING');
   };
 
+  // Pricing is no longer in the sidebar
   const navItems = [
     { id: 'OVERVIEW', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'SERVICES', label: 'Services', icon: Smartphone },
@@ -38,7 +36,8 @@ export const Layout: React.FC<LayoutProps> = ({
     { id: 'SAVINGS', label: 'Kolo Savings', icon: PiggyBank },
     { id: 'HISTORY', label: 'Transactions', icon: History },
     { id: 'RESELLER', label: 'Upgrade Package', icon: Zap },
-    { id: 'REWARDS', label: 'Rewards & Coupons', icon: Award },
+    { id: 'REWARDS', label: 'Coupons & Rewards', icon: Gift },
+    { id: 'REFERRALS', label: 'Referrals', icon: Users },
     { id: 'API', label: 'Developer API', icon: Code },
     { id: 'PROFILE', label: 'My Profile', icon: User },
   ];
@@ -72,42 +71,38 @@ export const Layout: React.FC<LayoutProps> = ({
           </div>
           
           <div className="flex items-center space-x-4 md:space-x-8 text-sm font-semibold text-slate-400">
-             {isDashboard || currentUser ? (
-               <>
-                 <div className="hidden md:flex items-center space-x-4">
-                    <button className="p-2 hover:bg-slate-800 rounded-full transition-colors relative">
-                        <Bell className="w-5 h-5" />
-                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                    </button>
-                    <div className="flex items-center space-x-2 bg-slate-800 py-1.5 px-3 rounded-full border border-slate-700">
-                        <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-amber-500 rounded-full overflow-hidden">
-                           {userProfile?.photoURL ? <img src={userProfile.photoURL} alt="Avatar" className="w-full h-full object-cover" /> : null}
-                        </div>
-                        <span className="text-white text-xs">{displayName}</span>
-                    </div>
-                    <button onClick={handleLogout} className="p-2 hover:text-red-400 transition-colors" title="Logout">
-                        <LogOut className="w-5 h-5" />
-                    </button>
-                 </div>
-                 {/* Mobile Menu Toggle */}
+             {currentUser && (
+               <div className="hidden md:flex items-center space-x-4">
+                  <button className="p-2 hover:bg-slate-800 rounded-full transition-colors relative">
+                      <Bell className="w-5 h-5" />
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                  </button>
+                  <div className="flex items-center space-x-2 bg-slate-800 py-1.5 px-3 rounded-full border border-slate-700">
+                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-amber-500 rounded-full overflow-hidden">
+                         {userProfile?.photoURL ? <img src={userProfile.photoURL} alt="Avatar" className="w-full h-full object-cover" /> : null}
+                      </div>
+                      <span className="text-white text-xs">{displayName}</span>
+                  </div>
+                  <button onClick={handleLogout} className="p-2 hover:text-red-400 transition-colors" title="Logout">
+                      <LogOut className="w-5 h-5" />
+                  </button>
+               </div>
+             )}
+
+             {!currentUser && (
+                <div className="hidden md:flex items-center space-x-4">
+                    <button onClick={() => onNavigate('PRICING_PUBLIC')} className="hover:text-blue-400">Pricing</button>
+                    <button onClick={() => onNavigate('LANDING')} className="bg-blue-600 px-4 py-2 rounded-full text-white font-bold hover:bg-blue-500">Login</button>
+                </div>
+             )}
+
+             {isDashboard && (
                  <button 
                     onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                     className="md:hidden p-2 text-slate-300 hover:text-white"
                  >
                     {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
                  </button>
-               </>
-             ) : (
-               <>
-                 <button onClick={() => onNavigate('ABOUT')} className="hidden md:block hover:text-blue-400 transition-colors">About</button>
-                 <button onClick={() => onNavigate('SUPPORT')} className="hidden md:block hover:text-blue-400 transition-colors">Support</button>
-                 <button 
-                  onClick={() => onNavigate('DASHBOARD')}
-                  className="flex items-center bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full transition-all shadow-lg shadow-blue-500/20"
-                 >
-                    Login <ArrowRight className="ml-2 w-4 h-4" />
-                 </button>
-               </>
              )}
           </div>
         </div>
@@ -115,7 +110,7 @@ export const Layout: React.FC<LayoutProps> = ({
 
       {/* Dashboard Layout */}
       <div className="flex flex-1 max-w-7xl mx-auto w-full relative">
-        {isDashboard && currentUser && (
+        {isDashboard && (
             <>
                 {/* Desktop Sidebar */}
                 <aside className="hidden md:block w-64 flex-shrink-0 border-r border-slate-800 bg-slate-950/50 sticky top-20 h-[calc(100vh-80px)] overflow-y-auto custom-scrollbar py-6 pr-6">
@@ -175,13 +170,11 @@ export const Layout: React.FC<LayoutProps> = ({
             </>
         )}
 
-        {/* Main Content Area */}
         <main className={`flex-grow py-8 px-4 sm:px-6 md:pl-8 ${isDashboard ? 'md:w-[calc(100%-16rem)]' : 'w-full'}`}>
             {children}
         </main>
       </div>
 
-      {/* Footer (Only show on landing pages or non-dashboard views usually, but kept for consistency) */}
       {!isDashboard && (
         <footer className="bg-slate-900 border-t border-slate-800 py-12 mt-auto">
             <div className="max-w-7xl mx-auto px-4">
@@ -194,37 +187,6 @@ export const Layout: React.FC<LayoutProps> = ({
                 <p className="text-slate-500 text-sm">
                     The most reliable platform for Airtime, Data, and Bill payments in Nigeria.
                 </p>
-                </div>
-                
-                <div>
-                <h4 className="font-bold text-white mb-4">Company</h4>
-                <ul className="space-y-2 text-slate-500 text-sm">
-                    <li><button onClick={() => onNavigate('ABOUT')} className="hover:text-blue-400">About Us</button></li>
-                    <li><button onClick={() => onNavigate('SUPPORT')} className="hover:text-blue-400">Contact Support</button></li>
-                </ul>
-                </div>
-
-                <div>
-                <h4 className="font-bold text-white mb-4">Legal</h4>
-                <ul className="space-y-2 text-slate-500 text-sm">
-                    <li><button onClick={() => onNavigate('PRIVACY')} className="hover:text-blue-400">Privacy Policy</button></li>
-                    <li><button onClick={() => onNavigate('TERMS')} className="hover:text-blue-400">Terms of Service</button></li>
-                </ul>
-                </div>
-
-                <div>
-                <h4 className="font-bold text-white mb-4">Account</h4>
-                <ul className="space-y-2 text-slate-500 text-sm">
-                    <li><button onClick={() => onNavigate('DASHBOARD')} className="hover:text-blue-400">Login / Register</button></li>
-                    <li><button onClick={() => onNavigate('SUPPORT')} className="hover:text-blue-400">Help Center</button></li>
-                </ul>
-                </div>
-            </div>
-
-            <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between text-slate-600 text-sm">
-                <span>&copy; {new Date().getFullYear()} OBATA VTU. All rights reserved.</span>
-                <div className="flex space-x-6 mt-4 md:mt-0">
-                <span className="flex items-center"><span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span> 100% Secure</span>
                 </div>
             </div>
             </div>

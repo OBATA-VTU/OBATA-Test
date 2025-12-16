@@ -27,6 +27,7 @@
               'fade-in': 'fadeIn 1s ease-out forwards',
               'bounce-slow': 'bounce 3s infinite',
               'pulse-glow': 'pulseGlow 3s infinite',
+              'marquee': 'marquee 25s linear infinite',
             },
             keyframes: {
               fadeInUp: {
@@ -40,6 +41,10 @@
               pulseGlow: {
                 '0%, 100%': { boxShadow: '0 0 15px rgba(245, 158, 11, 0.2)' },
                 '50%': { boxShadow: '0 0 30px rgba(245, 158, 11, 0.5)' },
+              },
+              marquee: {
+                '0%': { transform: 'translateX(0)' },
+                '100%': { transform: 'translateX(-50%)' },
               }
             }
           }
@@ -96,7 +101,7 @@
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "vite": "https://esm.sh/vite@^7.3.0",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/"
+    "firebase/": "https://esm.sh/firebase@10.8.0/"
   }
 }
 </script>

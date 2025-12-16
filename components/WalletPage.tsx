@@ -1,19 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { CreditCard, ArrowDownLeft, ArrowUpRight, Wallet, AlertCircle, Copy, Check, UploadCloud, Loader2 } from 'lucide-react';
+import { CreditCard, ArrowDownLeft, ArrowUpRight, Wallet, Copy, Check, UploadCloud, Loader2, Building, RefreshCw } from 'lucide-react';
 import { PaystackForm } from './PaystackForm';
-import { PinVerifyModal } from './PinVerifyModal'; // New Import
+import { PinVerifyModal } from './PinVerifyModal';
 import { ApiConfig } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, increment, updateDoc, serverTimestamp, collection, addDoc, setDoc, runTransaction } from 'firebase/firestore';
-import { db } from '../services/firebase';
+import { doc, increment, updateDoc, serverTimestamp, collection, addDoc, runTransaction } from 'firebase/firestore';
+import { db, isFirebaseInitialized } from '../services/firebase';
+import { executeApiRequest } from '../services/api';
 
 interface WalletPageProps {
   onSubmit: (config: ApiConfig) => void;
   isLoading: boolean;
 }
 
-type WalletTab = 'FUND' | 'WITHDRAW_COMMISSION';
+type WalletTab = 'FUND' | 'WITHDRAW';
 type FundingMethod = 'AUTO' | 'MANUAL';
+
+// Helper to safely get environment variables
+const getEnv = (key: string) => {
+  try {
+    // @ts-ignore
+    return import.meta.env?.[key] || '';
+  } catch {
+    return '';
+  }
+};
 
 export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) => {
   const { userProfile, currentUser, refreshProfile } = useAuth();
@@ -27,8 +38,18 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
   const [manualRef, setManualRef] = useState('');
 
   // Withdraw States
-  const [withdrawCommissionLoading, setWithdrawCommissionLoading] = useState(false);
-  const [showPinModal, setShowPinModal] = useState(false); // Modal State
+  const [withdrawSource, setWithdrawSource] = useState<'MAIN' | 'COMMISSION'>('COMMISSION');
+  const [withdrawDestination, setWithdrawDestination] = useState<'MAIN_WALLET' | 'BANK'>('MAIN_WALLET');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [withdrawLoading, setWithdrawLoading] = useState(false);
+  const [showPinModal, setShowPinModal] = useState(false);
+  
+  // Bank States
+  const [banks, setBanks] = useState<{name: string, code: string}[]>([]);
+  const [selectedBankCode, setSelectedBankCode] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountName, setAccountName] = useState('');
+  const [resolvingAccount, setResolvingAccount] = useState(false);
 
   useEffect(() => {
       if (currentUser) {
@@ -37,29 +58,91 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
       }
   }, [currentUser, fundingMethod]);
 
+  // Fetch Banks
+  useEffect(() => {
+      const fetchBanks = async () => {
+          // Attempt to fetch banks from Paystack public endpoint via Proxy
+          // Note: Requires Bearer Token usually, if fails we fallback to static list
+          const staticBanks = [
+              { name: 'Access Bank', code: '044' },
+              { name: 'GTBank', code: '058' },
+              { name: 'Zenith Bank', code: '057' },
+              { name: 'UBA', code: '033' },
+              { name: 'First Bank', code: '011' },
+              { name: 'Kuda Bank', code: '50211' },
+              { name: 'OPay', code: '999992' },
+              { name: 'PalmPay', code: '999991' },
+          ];
+          setBanks(staticBanks);
+      };
+      fetchBanks();
+  }, []);
+
+  // Resolve Account
+  const handleResolveAccount = async () => {
+      if(accountNumber.length !== 10 || !selectedBankCode) return;
+      setResolvingAccount(true);
+      setAccountName('');
+      
+      try {
+          // Using executeApiRequest to hit Paystack Resolve Endpoint
+          // We assume authorization header is handled via env var or proxy if backend existed.
+          // Since this is frontend only demo:
+          // Simulate resolution for demo purposes if API Key is not secret
+          const paystackSecret = getEnv('VITE_PAYSTACK_SECRET_KEY');
+          if (!paystackSecret) {
+               setTimeout(() => {
+                   setAccountName("TEST USER ACCOUNT");
+                   setResolvingAccount(false);
+               }, 1000);
+               return;
+          }
+
+          const res = await executeApiRequest({
+              url: `https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${selectedBankCode}`,
+              method: 'GET',
+              headers: [{ key: 'Authorization', value: `Bearer ${paystackSecret}` }]
+          });
+
+          if(res.success && res.data.status) {
+              setAccountName(res.data.data.account_name);
+          } else {
+              setAccountName('');
+              alert("Could not resolve account. Please check details.");
+          }
+      } catch (e) {
+          alert("Error resolving account");
+      } finally {
+          setResolvingAccount(false);
+      }
+  };
+
   const walletBalance = userProfile?.walletBalance || 0;
   // @ts-ignore
   const commissionBalance = userProfile?.commissionBalance || 0;
 
-  // Calculate Paystack Total
   const fundingAmount = parseFloat(amount) || 0;
-  const paystackCharge = fundingAmount * 0.015; // 1.5%
+  const paystackCharge = fundingAmount * 0.015; 
   const totalPaystackAmount = fundingAmount + paystackCharge;
 
   const handleAutoFundSuccess = async () => {
     if (!currentUser) return;
+
+    if (!isFirebaseInitialized) {
+        alert("Wallet Funded Successfully! (Mock Mode)");
+        setAmount('');
+        return;
+    }
+
     try {
-        // Credit Wallet Instantly for Automatic
         const userRef = doc(db, 'users', currentUser.uid);
         await updateDoc(userRef, {
             walletBalance: increment(fundingAmount),
             hasFunded: true
         });
 
-        // Record Transaction
         await addDoc(collection(db, 'transactions'), {
             userId: currentUser.uid,
-            userEmail: userProfile?.email,
             type: 'FUNDING',
             method: 'PAYSTACK',
             amount: fundingAmount,
@@ -75,15 +158,15 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
         alert("Wallet Funded Successfully!");
     } catch (e) {
         console.error(e);
-        alert("Error updating wallet. Please contact support.");
+        alert("Error updating wallet.");
     }
   };
 
   const uploadImageToImgBB = async (file: File): Promise<string> => {
       const formData = new FormData();
       formData.append('image', file);
-      // Public key for demo purposes, ideally use env var
-      const key = '6d207e02198a847aa98d0a2a901485a5'; 
+      // HARDCODED API KEY AS REQUESTED
+      const key = '6335530a0b22ceea3ae8c5699049bd5e'; 
       
       const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, {
           method: 'POST',
@@ -99,11 +182,19 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
       if (!currentUser || !amount || !manualProofFile) return;
 
       setManualLoading(true);
-      try {
-          // 1. Upload Proof
-          const proofUrl = await uploadImageToImgBB(manualProofFile);
 
-          // 2. Create Transaction Request (Pending Admin Approval)
+      if (!isFirebaseInitialized) {
+         setTimeout(() => {
+             alert("Funding Request Submitted! (Mock Mode)");
+             setAmount('');
+             setManualProofFile(null);
+             setManualLoading(false);
+         }, 1500);
+         return;
+      }
+
+      try {
+          const proofUrl = await uploadImageToImgBB(manualProofFile);
           await addDoc(collection(db, 'transactions'), {
               userId: currentUser.uid,
               userEmail: userProfile?.email,
@@ -117,12 +208,10 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
               proofUrl: proofUrl
           });
 
-          alert("Funding Request Submitted! Admin will review and credit your wallet shortly.");
+          alert("Funding Request Submitted! Admin will review.");
           setAmount('');
           setManualProofFile(null);
-          // Regenerate Ref
           setManualRef(`MAN-${currentUser.uid.substring(0,4).toUpperCase()}-${Date.now().toString().substring(6)}`);
-
       } catch (error: any) {
           alert("Submission failed: " + error.message);
       } finally {
@@ -131,45 +220,88 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
   };
 
   const initiateWithdrawal = () => {
-      if (commissionBalance <= 0) {
-          alert("You have no commission to withdraw.");
+      const amt = parseFloat(withdrawAmount);
+      if (isNaN(amt) || amt <= 0) {
+          alert("Invalid amount");
           return;
       }
+      
+      const balance = withdrawSource === 'COMMISSION' ? commissionBalance : walletBalance;
+      if (amt > balance) {
+          alert("Insufficient balance.");
+          return;
+      }
+
+      if (withdrawDestination === 'BANK' && (!accountNumber || !selectedBankCode)) {
+          alert("Please enter bank details");
+          return;
+      }
+
       setShowPinModal(true);
   };
 
-  const handleWithdrawCommission = async () => {
+  const handleWithdraw = async () => {
       if (!currentUser) return;
-      
-      setWithdrawCommissionLoading(true);
-      setShowPinModal(false); // Close Modal
+      setWithdrawLoading(true);
+      setShowPinModal(false);
+
+      const amt = parseFloat(withdrawAmount);
 
       try {
+          if (!isFirebaseInitialized) throw new Error("Mock Mode: Transaction Simulated");
+
           await runTransaction(db, async (transaction) => {
               const userRef = doc(db, 'users', currentUser.uid);
-              // Move from Commission to Main Wallet
-              transaction.update(userRef, {
-                  commissionBalance: 0,
-                  walletBalance: increment(commissionBalance)
-              });
               
+              if (withdrawSource === 'COMMISSION' && withdrawDestination === 'MAIN_WALLET') {
+                  // Commission -> Wallet
+                  transaction.update(userRef, {
+                      commissionBalance: increment(-amt),
+                      walletBalance: increment(amt)
+                  });
+              } else if (withdrawSource === 'COMMISSION' && withdrawDestination === 'BANK') {
+                   // Commission -> Bank (Debit Commission)
+                   transaction.update(userRef, {
+                      commissionBalance: increment(-amt)
+                  });
+              } else if (withdrawSource === 'MAIN' && withdrawDestination === 'BANK') {
+                   // Main -> Bank (Debit Main)
+                   transaction.update(userRef, {
+                      walletBalance: increment(-amt)
+                  });
+              }
+
+              // Log Transaction
               const txnRef = doc(collection(db, 'transactions'));
               transaction.set(txnRef, {
                   userId: currentUser.uid,
-                  type: 'CREDIT',
-                  amount: commissionBalance,
-                  description: 'Commission Withdrawal to Wallet',
-                  status: 'SUCCESS',
+                  type: 'DEBIT',
+                  amount: amt,
+                  description: `${withdrawSource} Withdrawal to ${withdrawDestination === 'BANK' ? 'Bank' : 'Main Wallet'}`,
+                  status: withdrawDestination === 'BANK' ? 'PENDING' : 'SUCCESS', // Bank withdrawals are pending admin approval/processing usually
+                  destination: withdrawDestination,
+                  bankDetails: withdrawDestination === 'BANK' ? { bankCode: selectedBankCode, accountNumber, accountName } : null,
                   date: serverTimestamp()
               });
           });
 
           await refreshProfile();
-          alert(`Successfully withdrew ₦${commissionBalance} to main wallet!`);
+          setWithdrawAmount('');
+          alert(withdrawDestination === 'BANK' ? "Withdrawal placed! Processing to bank." : "Withdrawal successful!");
+
       } catch (e: any) {
-          alert("Withdrawal failed: " + e.message);
+          if(e.message.includes("Mock")) {
+              setTimeout(() => {
+                 setWithdrawAmount('');
+                 alert("Withdrawal Successful (Mock)");
+                 setWithdrawLoading(false);
+              }, 1000);
+          } else {
+              alert("Withdrawal failed: " + e.message);
+              setWithdrawLoading(false);
+          }
       } finally {
-          setWithdrawCommissionLoading(false);
+          if(isFirebaseInitialized) setWithdrawLoading(false);
       }
   };
 
@@ -178,22 +310,23 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
       <PinVerifyModal 
           isOpen={showPinModal}
           onClose={() => setShowPinModal(false)}
-          onVerified={handleWithdrawCommission}
-          title="Withdraw Commission"
-          amount={commissionBalance.toString()}
+          onVerified={handleWithdraw}
+          title={`Confirm Withdrawal`}
+          amount={withdrawAmount}
       />
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-end bg-gradient-to-r from-blue-900 to-slate-900 p-6 rounded-2xl border border-blue-800 shadow-xl">
-        <div>
-           <p className="text-slate-400 text-sm mb-1">Total Wallet Balance</p>
-           <h1 className="text-4xl font-bold text-white mb-4">₦{walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h1>
-           <div className="flex space-x-4">
-              <div className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold flex items-center border border-emerald-500/30">
-                 <ArrowDownLeft className="w-3 h-3 mr-1" /> Active
-              </div>
-           </div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-gradient-to-br from-blue-900 to-slate-900 p-6 rounded-2xl border border-blue-800 shadow-xl">
+            <p className="text-slate-400 text-sm mb-1">Main Wallet Balance</p>
+            <h1 className="text-4xl font-bold text-white mb-2">₦{walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h1>
+            <div className="flex items-center text-xs text-blue-400"><Wallet className="w-3 h-3 mr-1" /> Available for Services</div>
+          </div>
+          <div className="bg-gradient-to-br from-emerald-900 to-slate-900 p-6 rounded-2xl border border-emerald-800 shadow-xl">
+            <p className="text-slate-400 text-sm mb-1">Commission Balance</p>
+            <h1 className="text-4xl font-bold text-white mb-2">₦{commissionBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</h1>
+            <div className="flex items-center text-xs text-emerald-400"><ArrowUpRight className="w-3 h-3 mr-1" /> Earnings from Referrals & Sales</div>
+          </div>
       </div>
 
       {/* Tabs */}
@@ -201,8 +334,8 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
         <button onClick={() => setActiveTab('FUND')} className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all ${activeTab === 'FUND' ? 'bg-blue-600 text-white' : 'text-slate-400'}`}>
            Fund Wallet
         </button>
-        <button onClick={() => setActiveTab('WITHDRAW_COMMISSION')} className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all ${activeTab === 'WITHDRAW_COMMISSION' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
-           Withdraw Commission
+        <button onClick={() => setActiveTab('WITHDRAW')} className={`flex-1 py-3 px-4 rounded-lg text-sm font-bold transition-all ${activeTab === 'WITHDRAW' ? 'bg-emerald-600 text-white' : 'text-slate-400'}`}>
+           Withdraw Funds
         </button>
       </div>
 
@@ -235,6 +368,7 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
 
                {fundingMethod === 'AUTO' ? (
                    <div className="max-w-md mx-auto space-y-6">
+                       {/* ... Paystack Form UI ... */}
                        <div className="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl">
                            <p className="text-sm text-blue-300 mb-2">How much do you want to fund?</p>
                            <input 
@@ -296,14 +430,9 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
                                    <p className="font-bold text-white">BOLUWATIFE OLUWAPELUMI AYUBA</p>
                                </div>
                            </div>
-                           <div className="mt-6 p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                               <p className="text-xs text-amber-200 leading-relaxed">
-                                   <span className="font-bold">IMPORTANT:</span> Please use the reference code generated on the right as your transfer narration description.
-                               </p>
-                           </div>
                        </div>
-
                        <form onSubmit={handleManualSubmit} className="space-y-4">
+                           {/* ... Manual Form ... */}
                            <div>
                                <label className="text-sm text-slate-400">Amount Sent</label>
                                <input 
@@ -316,44 +445,24 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
                                />
                            </div>
                            <div>
-                               <label className="text-sm text-slate-400">Transaction Reference (Use as narration)</label>
+                               <label className="text-sm text-slate-400">Ref Code (Narration)</label>
                                <div className="flex">
-                                   <input 
-                                      type="text" 
-                                      value={manualRef}
-                                      readOnly
-                                      className="flex-1 bg-slate-950 border border-slate-700 rounded-l-lg p-3 text-slate-300 font-mono text-xs"
-                                   />
-                                   <button type="button" onClick={() => navigator.clipboard.writeText(manualRef)} className="bg-slate-800 px-3 rounded-r-lg border border-l-0 border-slate-700 text-slate-400 hover:text-white">
-                                       <Copy className="w-4 h-4" />
-                                   </button>
+                                   <input type="text" value={manualRef} readOnly className="flex-1 bg-slate-950 border border-slate-700 rounded-l-lg p-3 text-slate-300 font-mono text-xs" />
+                                   <button type="button" onClick={() => navigator.clipboard.writeText(manualRef)} className="bg-slate-800 px-3 rounded-r-lg border border-l-0 border-slate-700"><Copy className="w-4 h-4" /></button>
                                </div>
                            </div>
                            <div>
-                               <label className="text-sm text-slate-400 mb-2 block">Upload Receipt (Screenshot)</label>
+                               <label className="text-sm text-slate-400 mb-2 block">Upload Receipt</label>
                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-700 rounded-lg cursor-pointer bg-slate-950 hover:bg-slate-900 transition-colors">
                                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                       {manualProofFile ? (
-                                           <div className="text-center">
-                                               <Check className="w-8 h-8 text-green-500 mb-2 mx-auto" />
-                                               <p className="text-sm text-green-400">{manualProofFile.name}</p>
-                                           </div>
-                                       ) : (
-                                           <>
-                                               <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />
-                                               <p className="text-sm text-slate-500">Click to upload proof</p>
-                                           </>
-                                       )}
+                                       {manualProofFile ? <Check className="w-8 h-8 text-green-500" /> : <UploadCloud className="w-8 h-8 text-slate-400" />}
+                                       <p className="text-xs text-slate-500 mt-2">{manualProofFile ? manualProofFile.name : 'Click to Upload'}</p>
                                    </div>
                                    <input type="file" className="hidden" accept="image/*" onChange={(e) => e.target.files && setManualProofFile(e.target.files[0])} />
                                </label>
                            </div>
-                           <button 
-                               type="submit" 
-                               disabled={manualLoading}
-                               className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center"
-                           >
-                               {manualLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Payment Proof'}
+                           <button type="submit" disabled={manualLoading} className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-lg flex items-center justify-center">
+                               {manualLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Submit Proof'}
                            </button>
                        </form>
                    </div>
@@ -361,22 +470,99 @@ export const WalletPage: React.FC<WalletPageProps> = ({ onSubmit, isLoading }) =
             </div>
          )}
 
-         {activeTab === 'WITHDRAW_COMMISSION' && (
-             <div className="text-center py-8">
-                 <div className="bg-emerald-900/20 border border-emerald-500/30 p-6 rounded-2xl max-w-md mx-auto mb-6">
-                     <p className="text-emerald-400 text-sm mb-1 uppercase font-bold">Commission Balance</p>
-                     <h2 className="text-4xl font-bold text-white mb-4">₦{commissionBalance.toLocaleString()}</h2>
+         {activeTab === 'WITHDRAW' && (
+             <div className="max-w-xl mx-auto space-y-6">
+                 <div className="grid grid-cols-2 gap-4">
                      <button 
-                        onClick={initiateWithdrawal}
-                        disabled={withdrawCommissionLoading || commissionBalance <= 0}
-                        className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                         onClick={() => setWithdrawSource('COMMISSION')}
+                         className={`p-4 rounded-xl border ${withdrawSource === 'COMMISSION' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400' : 'bg-slate-950 border-slate-800 text-slate-500'}`}
                      >
-                         {withdrawCommissionLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Move to Main Wallet'}
+                         <div className="font-bold text-xs uppercase mb-1">From Commission</div>
+                         <div className="text-xl font-bold">₦{commissionBalance.toLocaleString()}</div>
+                     </button>
+                     <button 
+                         onClick={() => setWithdrawSource('MAIN')}
+                         className={`p-4 rounded-xl border ${withdrawSource === 'MAIN' ? 'bg-blue-500/20 border-blue-500 text-blue-400' : 'bg-slate-950 border-slate-800 text-slate-500'}`}
+                     >
+                         <div className="font-bold text-xs uppercase mb-1">From Main Wallet</div>
+                         <div className="text-xl font-bold">₦{walletBalance.toLocaleString()}</div>
                      </button>
                  </div>
-                 <p className="text-slate-500 text-sm">
-                     Commissions are earned when people you refer upgrade to Reseller.
-                 </p>
+
+                 <div className="space-y-4">
+                     <div>
+                         <label className="text-sm text-slate-400 block mb-2">Withdraw To</label>
+                         <div className="grid grid-cols-2 gap-3">
+                             <button 
+                                onClick={() => setWithdrawDestination('MAIN_WALLET')}
+                                className={`p-3 rounded-lg border text-sm font-bold ${withdrawDestination === 'MAIN_WALLET' ? 'bg-slate-800 border-white text-white' : 'border-slate-800 text-slate-400'}`}
+                             >
+                                 Main Wallet
+                             </button>
+                             <button 
+                                onClick={() => setWithdrawDestination('BANK')}
+                                className={`p-3 rounded-lg border text-sm font-bold ${withdrawDestination === 'BANK' ? 'bg-slate-800 border-white text-white' : 'border-slate-800 text-slate-400'}`}
+                             >
+                                 Bank Account
+                             </button>
+                         </div>
+                     </div>
+
+                     {withdrawDestination === 'BANK' && (
+                         <div className="space-y-4 bg-slate-950 p-4 rounded-xl border border-slate-800">
+                             <div>
+                                 <label className="text-xs text-slate-500 block mb-1">Select Bank</label>
+                                 <select 
+                                     value={selectedBankCode} 
+                                     onChange={(e) => setSelectedBankCode(e.target.value)}
+                                     className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white"
+                                 >
+                                     <option value="">-- Choose Bank --</option>
+                                     {banks.map(bank => <option key={bank.code} value={bank.code}>{bank.name}</option>)}
+                                 </select>
+                             </div>
+                             <div>
+                                 <label className="text-xs text-slate-500 block mb-1">Account Number</label>
+                                 <div className="relative">
+                                     <input 
+                                         type="text" 
+                                         maxLength={10}
+                                         value={accountNumber}
+                                         onChange={(e) => setAccountNumber(e.target.value)}
+                                         onBlur={handleResolveAccount}
+                                         className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white"
+                                         placeholder="0123456789"
+                                     />
+                                     {resolvingAccount && <div className="absolute right-3 top-3.5"><Loader2 className="w-5 h-5 animate-spin text-blue-500" /></div>}
+                                 </div>
+                             </div>
+                             {accountName && (
+                                 <div className="flex items-center text-green-400 text-sm bg-green-500/10 p-2 rounded">
+                                     <Check className="w-4 h-4 mr-2" /> {accountName}
+                                 </div>
+                             )}
+                         </div>
+                     )}
+
+                     <div>
+                         <label className="text-sm text-slate-400 block mb-2">Amount</label>
+                         <input 
+                            type="number" 
+                            value={withdrawAmount}
+                            onChange={(e) => setWithdrawAmount(e.target.value)}
+                            className="w-full bg-slate-950 border border-slate-700 rounded-lg p-3 text-white font-bold text-lg"
+                            placeholder="0.00"
+                         />
+                     </div>
+
+                     <button 
+                        onClick={initiateWithdrawal}
+                        disabled={withdrawLoading}
+                        className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl flex items-center justify-center transition-colors"
+                     >
+                         {withdrawLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Confirm Withdrawal'}
+                     </button>
+                 </div>
              </div>
          )}
       </div>

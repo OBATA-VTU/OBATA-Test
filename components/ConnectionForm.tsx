@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ApiConfig, KeyValuePair } from '../types';
 import { executeApiRequest } from '../services/api'; 
-import { CreditCard, Check, Search, Loader2, Wallet, FileText, XCircle, ArrowRight } from 'lucide-react';
+import { CreditCard, Check, Search, Loader2, Wallet, FileText, XCircle, ArrowRight, UserCheck, Phone, LayoutGrid, Banknote } from 'lucide-react';
 
 interface ConnectionFormProps {
   onSubmit: (config: ApiConfig) => void;
@@ -11,17 +11,26 @@ interface ConnectionFormProps {
 
 type ServiceType = 'AIRTIME' | 'DATA' | 'CABLE' | 'ELECTRICITY' | 'EDUCATION' | 'BALANCE' | 'TRANSACTION';
 
+// Helper to safely get environment variables
+const getEnv = (key: string) => {
+  try {
+    // @ts-ignore
+    return import.meta.env?.[key] || '';
+  } catch {
+    return '';
+  }
+};
+
 // Configuration from Env Vars
-const BASE_URL = (import.meta as any).env.VITE_INLOMAX_BASE_URL || 'https://inlomax.com/api';
-const API_KEY = (import.meta as any).env.VITE_INLOMAX_API_KEY || '';
+const BASE_URL = getEnv('VITE_INLOMAX_BASE_URL') || 'https://inlomax.com/api';
+const API_KEY = getEnv('VITE_INLOMAX_API_KEY') || '';
 const USE_PROXY = true;
 
 const NETWORKS = [
-  { id: '1', name: 'MTN' },
-  { id: '2', name: 'AIRTEL' },
-  { id: '3', name: 'GLO' },
-  { id: '4', name: '9MOBILE' },
-  { id: '5', name: 'VITEL' }
+  { id: '1', name: 'MTN', color: 'bg-yellow-400' },
+  { id: '2', name: 'AIRTEL', color: 'bg-red-500' },
+  { id: '3', name: 'GLO', color: 'bg-green-500' },
+  { id: '4', name: '9MOBILE', color: 'bg-green-700' },
 ];
 
 const DATA_PLANS: Record<string, { id: string; name: string; price: string; validity?: string }[]> = {
@@ -251,10 +260,10 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
   };
 
   const isFormValid = () => {
-    if (service === 'AIRTIME') return phone && amount;
-    if (service === 'DATA') return phone && planId;
-    if (service === 'CABLE') return iucNumber && cablePlanId && validatedName; 
-    if (service === 'ELECTRICITY') return meterNumber && amount && validatedName; 
+    if (service === 'AIRTIME') return phone.length >= 10 && amount;
+    if (service === 'DATA') return phone.length >= 10 && planId;
+    if (service === 'CABLE') return iucNumber.length >= 10 && cablePlanId && validatedName; 
+    if (service === 'ELECTRICITY') return meterNumber.length >= 10 && amount && validatedName; 
     if (service === 'EDUCATION') return quantity;
     if (service === 'TRANSACTION') return txnReference;
     if (service === 'BALANCE') return true;
@@ -264,111 +273,118 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
   if (!API_KEY) {
     return (
       <div className="bg-red-900/20 border border-red-500/50 p-6 rounded-2xl text-center">
-        <h3 className="text-red-500 font-bold mb-2">Configuration Error</h3>
-        <p className="text-slate-400 text-sm">API Keys not found. Please set VITE_INLOMAX_API_KEY in your Vercel Environment Variables.</p>
+        <h3 className="text-red-500 font-bold mb-2">Configuration Warning</h3>
+        <p className="text-slate-400 text-sm">VITE_INLOMAX_API_KEY environment variable is not set. API calls will fail.</p>
       </div>
     );
   }
 
+  // Network Selection Component
+  const NetworkSelector = ({ selected, onSelect }: { selected: string, onSelect: (id: string) => void }) => (
+      <div className="grid grid-cols-4 gap-3 mb-6">
+          {NETWORKS.map(n => (
+              <button 
+                key={n.id}
+                type="button"
+                onClick={() => onSelect(n.id)}
+                className={`relative flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${selected === n.id ? 'bg-slate-800 border-blue-500 shadow-lg shadow-blue-900/20' : 'bg-slate-950 border-slate-800 hover:border-slate-600'}`}
+              >
+                  <div className={`w-8 h-8 rounded-full ${n.color} mb-2`}></div>
+                  <span className={`text-[10px] font-bold ${selected === n.id ? 'text-white' : 'text-slate-500'}`}>{n.name}</span>
+                  {selected === n.id && <div className="absolute top-1 right-1"><Check className="w-3 h-3 text-blue-500" /></div>}
+              </button>
+          ))}
+      </div>
+  );
+
   return (
     <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <div className="min-h-[200px]">
           {service === 'AIRTIME' && (
-             <div className="space-y-5 animate-fade-in-up">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Select Network</label>
-                  <select value={networkId} onChange={e => setNetworkId(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors">
-                    {NETWORKS.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">Amount (₦)</label>
-                    <div className="relative">
-                        <span className="absolute left-3 top-3.5 text-slate-500">₦</span>
-                        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="100" className="w-full bg-slate-900 border border-slate-600 rounded-lg pl-8 p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
+             <div className="animate-fade-in-up">
+                <label className="text-xs font-bold text-slate-500 uppercase mb-3 block">Choose Network</label>
+                <NetworkSelector selected={networkId} onSelect={setNetworkId} />
+                
+                <div className="space-y-5">
+                    <div>
+                        <label className="text-sm font-medium text-slate-300 mb-1.5 flex items-center"><Phone className="w-4 h-4 mr-2" /> Phone Number</label>
+                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="08012345678" className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500 text-lg tracking-wide" />
                     </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">Phone Number</label>
-                    <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="08012345678" className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500" />
-                  </div>
+                    <div>
+                        <label className="text-sm font-medium text-slate-300 mb-1.5 flex items-center"><Banknote className="w-4 h-4 mr-2" /> Amount (₦)</label>
+                        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="100" className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500 text-lg font-bold" />
+                    </div>
                 </div>
              </div>
           )}
 
           {service === 'DATA' && (
-            <div className="space-y-5 animate-fade-in-up">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Select Network</label>
-                  <select 
-                    value={networkId} 
-                    onChange={e => { setNetworkId(e.target.value); setPlanId(''); }} 
-                    className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500"
-                  >
-                    {NETWORKS.map(n => <option key={n.id} value={n.id}>{n.name}</option>)}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Data Plan</label>
-                  <select 
-                    value={planId} 
-                    onChange={e => setPlanId(e.target.value)} 
-                    className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500"
-                  >
-                    <option value="">-- Select Data Plan --</option>
-                    {DATA_PLANS[networkId]?.map(plan => (
-                      <option key={plan.id} value={plan.id}>
-                        {plan.name} - ₦{plan.price} ({plan.validity})
-                      </option>
-                    )) || <option disabled>No plans available</option>}
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Phone Number</label>
-                  <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="08012345678" className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500" />
+            <div className="animate-fade-in-up">
+                 <label className="text-xs font-bold text-slate-500 uppercase mb-3 block">Choose Network</label>
+                <NetworkSelector selected={networkId} onSelect={(id) => { setNetworkId(id); setPlanId(''); }} />
+
+                <div className="space-y-5">
+                     <div>
+                        <label className="text-sm font-medium text-slate-300 mb-1.5 flex items-center"><LayoutGrid className="w-4 h-4 mr-2" /> Data Plan</label>
+                        <select 
+                            value={planId} 
+                            onChange={e => setPlanId(e.target.value)} 
+                            className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500 appearance-none"
+                        >
+                            <option value="">-- Select Data Bundle --</option>
+                            {DATA_PLANS[networkId]?.map(plan => (
+                            <option key={plan.id} value={plan.id}>
+                                {plan.name} - ₦{plan.price} ({plan.validity})
+                            </option>
+                            )) || <option disabled>No plans available</option>}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="text-sm font-medium text-slate-300 mb-1.5 flex items-center"><Phone className="w-4 h-4 mr-2" /> Phone Number</label>
+                        <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="08012345678" className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500 text-lg tracking-wide" />
+                    </div>
                 </div>
              </div>
           )}
 
           {service === 'CABLE' && (
              <div className="space-y-5 animate-fade-in-up">
-                <div className="space-y-2">
-                   <label className="text-sm font-medium text-slate-300">Select Package</label>
-                   <select value={cablePlanId} onChange={e => setCablePlanId(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500">
+                <div>
+                   <label className="text-sm font-medium text-slate-300 mb-1.5 block">Select Package</label>
+                   <select value={cablePlanId} onChange={e => setCablePlanId(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500">
                       {CABLE_PLANS.map(p => (
                         <option key={p.id} value={p.id}>{p.provider} - {p.name}</option>
                       ))}
                    </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">SmartCard / IUC Number</label>
-                  <div className="flex space-x-2">
+                <div>
+                  <label className="text-sm font-medium text-slate-300 mb-1.5 block">SmartCard / IUC Number</label>
+                  <div className="flex gap-2">
                     <input 
                       type="text" 
                       value={iucNumber} 
                       onChange={e => setIucNumber(e.target.value)} 
                       placeholder="e.g. 7027914329" 
-                      className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500" 
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500" 
                     />
                     <button
                       type="button"
                       onClick={handleVerify}
                       disabled={!iucNumber || isValidating}
-                      className="bg-slate-700 hover:bg-slate-600 text-white px-6 rounded-lg font-bold disabled:opacity-50"
+                      className="bg-slate-800 hover:bg-slate-700 text-white px-6 rounded-xl font-bold disabled:opacity-50 transition-colors"
                     >
                       {isValidating ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify'}
                     </button>
                   </div>
                   {validatedName && (
-                    <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-lg flex items-center text-blue-400 text-sm">
-                      <Check className="w-4 h-4 mr-2" /> 
+                    <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex items-center text-blue-400 text-sm mt-3 animate-fade-in">
+                      <UserCheck className="w-4 h-4 mr-2" /> 
                       <span>Account: <span className="font-bold text-white">{validatedName}</span></span>
                     </div>
                   )}
                   {validationError && (
-                    <div className="bg-red-900/30 border border-red-500/30 p-3 rounded-lg flex items-center text-red-400 text-sm">
+                    <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center text-red-400 text-sm mt-3 animate-fade-in">
                       <XCircle className="w-4 h-4 mr-2" /> 
                       <span>{validationError}</span>
                     </div>
@@ -379,52 +395,52 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
 
           {service === 'ELECTRICITY' && (
              <div className="space-y-5 animate-fade-in-up">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Disco Provider</label>
-                  <select value={discoId} onChange={e => setDiscoId(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500">
+                <div>
+                  <label className="text-sm font-medium text-slate-300 mb-1.5 block">Disco Provider</label>
+                  <select value={discoId} onChange={e => setDiscoId(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500">
                     {ELECTRICITY_DISCOS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">Meter Type</label>
-                    <select value={meterType} onChange={e => setMeterType(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500">
+                  <div>
+                    <label className="text-sm font-medium text-slate-300 mb-1.5 block">Meter Type</label>
+                    <select value={meterType} onChange={e => setMeterType(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500">
                       <option value="1">Prepaid</option>
                       <option value="2">Postpaid</option>
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-300">Amount (₦)</label>
-                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="1000" className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500" />
+                  <div>
+                    <label className="text-sm font-medium text-slate-300 mb-1.5 block">Amount (₦)</label>
+                    <input type="number" value={amount} onChange={e => setAmount(e.target.value)} placeholder="1000" className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500 font-bold" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Meter Number</label>
-                  <div className="flex space-x-2">
+                <div>
+                  <label className="text-sm font-medium text-slate-300 mb-1.5 block">Meter Number</label>
+                  <div className="flex gap-2">
                     <input 
                       type="text" 
                       value={meterNumber} 
                       onChange={e => setMeterNumber(e.target.value)} 
                       placeholder="Meter No" 
-                      className="flex-1 bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500" 
+                      className="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500" 
                     />
                     <button
                       type="button"
                       onClick={handleVerify}
                       disabled={!meterNumber || isValidating}
-                      className="bg-slate-700 hover:bg-slate-600 text-white px-6 rounded-lg font-bold disabled:opacity-50"
+                      className="bg-slate-800 hover:bg-slate-700 text-white px-6 rounded-xl font-bold disabled:opacity-50 transition-colors"
                     >
                       {isValidating ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify'}
                     </button>
                   </div>
                   {validatedName && (
-                    <div className="bg-blue-900/30 border border-blue-500/30 p-3 rounded-lg flex items-center text-blue-400 text-sm">
-                      <Check className="w-4 h-4 mr-2" /> 
+                    <div className="bg-blue-500/10 border border-blue-500/20 p-3 rounded-lg flex items-center text-blue-400 text-sm mt-3 animate-fade-in">
+                      <UserCheck className="w-4 h-4 mr-2" /> 
                       <span>Account: <span className="font-bold text-white">{validatedName}</span></span>
                     </div>
                   )}
                    {validationError && (
-                    <div className="bg-red-900/30 border border-red-500/30 p-3 rounded-lg flex items-center text-red-400 text-sm">
+                    <div className="bg-red-500/10 border border-red-500/20 p-3 rounded-lg flex items-center text-red-400 text-sm mt-3 animate-fade-in">
                       <XCircle className="w-4 h-4 mr-2" /> 
                       <span>{validationError}</span>
                     </div>
@@ -435,15 +451,15 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
 
           {service === 'EDUCATION' && (
              <div className="space-y-5 animate-fade-in-up">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Exam Body</label>
-                  <select value={examId} onChange={e => setExamId(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500">
+                <div>
+                  <label className="text-sm font-medium text-slate-300 mb-1.5 block">Exam Body</label>
+                  <select value={examId} onChange={e => setExamId(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500">
                     {EXAM_TYPES.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-300">Quantity</label>
-                  <input type="number" min="1" max="10" value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-slate-900 border border-slate-600 rounded-lg p-3 text-white focus:border-blue-500" />
+                <div>
+                  <label className="text-sm font-medium text-slate-300 mb-1.5 block">Quantity</label>
+                  <input type="number" min="1" max="10" value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500" />
                 </div>
              </div>
           )}
@@ -453,28 +469,28 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
         <button
           type="submit"
           disabled={isLoading || !isFormValid()}
-          className={`w-full flex items-center justify-center space-x-2 py-4 px-6 rounded-xl shadow-lg text-base font-bold text-white transition-all duration-200 ${
+          className={`w-full flex items-center justify-center space-x-2 py-4 px-6 rounded-xl shadow-lg text-lg font-bold text-white transition-all duration-200 ${
             isLoading || !isFormValid()
-              ? 'bg-slate-700 cursor-not-allowed opacity-50'
-              : 'bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 hover:shadow-blue-500/30 active:scale-[0.98]'
+              ? 'bg-slate-800 cursor-not-allowed opacity-50'
+              : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:shadow-blue-500/30 active:scale-[0.98]'
           }`}
         >
           {isLoading ? (
             <>
-              <Loader2 className="animate-spin mr-2 h-5 w-5 text-white" />
-              Processing Request...
+              <Loader2 className="animate-spin mr-2 h-6 w-6 text-white" />
+              Processing...
             </>
           ) : (
             <>
-              {service === 'BALANCE' ? <Wallet className="w-5 h-5" /> : 
-               service === 'TRANSACTION' ? <Search className="w-5 h-5" /> :
-               <CreditCard className="w-5 h-5" />}
+              {service === 'BALANCE' ? <Wallet className="w-6 h-6" /> : 
+               service === 'TRANSACTION' ? <Search className="w-6 h-6" /> :
+               <CreditCard className="w-6 h-6" />}
               <span>
                 {service === 'BALANCE' ? 'Check Balance' :
                  service === 'TRANSACTION' ? 'Verify Status' :
-                 'Confirm Purchase'}
+                 'Purchase Now'}
               </span>
-              <ArrowRight className="w-5 h-5 ml-1" />
+              <ArrowRight className="w-6 h-6 ml-2" />
             </>
           )}
         </button>

@@ -11,8 +11,18 @@ interface PaystackFormProps {
   title?: string;
 }
 
+// Helper to safely get environment variables
+const getEnv = (key: string) => {
+  try {
+    // @ts-ignore
+    return import.meta.env?.[key] || '';
+  } catch {
+    return '';
+  }
+};
+
 // SECURE: We only use the Public Key on the frontend.
-const PAYSTACK_PUBLIC_KEY = (import.meta as any).env.VITE_PAYSTACK_PUBLIC_KEY || '';
+const PAYSTACK_PUBLIC_KEY = getEnv('VITE_PAYSTACK_PUBLIC_KEY') || '';
 
 export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading, forcedAmount, forcedAction, title, onSuccess }) => {
   const [email, setEmail] = useState('');
