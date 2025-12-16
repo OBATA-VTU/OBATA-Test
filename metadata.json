@@ -1,0 +1,5 @@
+{
+  "name": "OBATA VTU - Transaction Terminal",
+  "description": "Virtual Top Up transaction terminal for testing purchases via Inlomax API.",
+  "requestFramePermissions": []
+}
