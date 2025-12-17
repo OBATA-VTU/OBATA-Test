@@ -3,7 +3,7 @@ import {
   Zap, Smartphone, Wifi, Terminal, CheckCircle, 
   ShieldCheck, Database, LayoutGrid,
   CloudLightning, Search, Landmark, Play, UserCheck, RefreshCw,
-  Code, AlertTriangle, Activity
+  Code, AlertTriangle, Activity, ShieldAlert
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { db } from '../services/firebase';
@@ -56,7 +56,7 @@ export const TransactionTerminal: React.FC = () => {
         querySnapshot.forEach((doc) => services.push({ id: doc.id, ...doc.data() }));
         setSyncedServices(services);
     } catch (e) {
-        console.error("Firestore Registry access failure");
+        console.error("Firestore Registry access failure. Check security rules.");
     }
   };
 
@@ -69,44 +69,63 @@ export const TransactionTerminal: React.FC = () => {
   const syncServices = async () => {
     setIsSyncing(true);
     setRawResponse(null);
-    const tid = toast.loading("Connecting to Inlomax...");
+    const tid = toast.loading("Connecting to Inlomax API...");
+    
+    let apiData = null;
+
+    // STEP 1: API Handshake (Vercel)
     try {
       const res = await fetch('/api/terminal/services');
       const text = await res.text();
-      let result;
       try {
-          result = JSON.parse(text);
+          apiData = JSON.parse(text);
       } catch (e) {
-          throw new Error("Server returned non-JSON data (HTML Error Page)");
+          throw new Error("Vercel Proxy returned HTML. Likely a 500 error on your backend.");
       }
       
-      setRawResponse(result);
-      
-      if (result.status === 'success') {
+      if (apiData.status !== 'success') {
+        setRawResponse(apiData);
+        throw new Error(apiData.message || "Provider Refused Connection");
+      }
+      toast.success("API Delivered Data!", { id: tid });
+    } catch (e: any) {
+      toast.error("Handshake Lost", { id: tid });
+      setRawResponse({ error: "Communication Error", details: e.message });
+      setIsSyncing(false);
+      return;
+    }
+
+    // STEP 2: Database Sync (Firestore)
+    const writeTid = toast.loading("Writing to Local Registry...");
+    try {
         const batch = writeBatch(db);
-        const data = result.data;
+        const data = apiData.data;
         
         data.airtime.forEach((item: any) => {
             const ref = doc(collection(db, 'synced_services'), `AIRTIME_${item.network}`);
-            batch.set(ref, { ...item, type: 'AIRTIME', label: `${item.network} Airtime` });
+            batch.set(ref, { ...item, type: 'AIRTIME', label: `${item.network} Airtime`, updatedAt: Date.now() });
         });
 
         data.dataPlans.forEach((item: any) => {
             const ref = doc(collection(db, 'synced_services'), `DATA_${item.serviceID}`);
-            batch.set(ref, { ...item, type: 'DATA', label: `${item.network} ${item.dataPlan} (${item.dataType})` });
+            batch.set(ref, { ...item, type: 'DATA', label: `${item.network} ${item.dataPlan} (${item.dataType})`, updatedAt: Date.now() });
         });
 
         await batch.commit();
-        toast.success("Database Updated!", { id: tid });
+        toast.success("Registry Updated!", { id: writeTid });
+        setRawResponse(apiData);
         loadLocalServices();
-      } else {
-        toast.error("Provider Rejected Connection", { id: tid });
-      }
     } catch (e: any) {
-      toast.error("Handshake Lost", { id: tid });
-      setRawResponse({ error: "Communication Error", details: e.message, hint: "Check Vercel Deployment Logs for index.ts syntax errors." });
+        console.error("Firestore Write Blocked:", e);
+        toast.error("Database Access Denied", { id: writeTid });
+        setRawResponse({ 
+            status: "SECURITY_BLOCK",
+            error: "Firestore Permission Fault", 
+            details: e.message, 
+            guide: "Your API call worked, but your database blocked the save. Go to Firebase Console -> Firestore -> Rules and ensure 'synced_services' is writable." 
+        });
     } finally {
-      setIsSyncing(false);
+        setIsSyncing(false);
     }
   };
 
@@ -114,7 +133,7 @@ export const TransactionTerminal: React.FC = () => {
   const fetchBanks = async () => {
     setIsLoading(true);
     setRawResponse(null);
-    const tid = toast.loading("Probing Paystack Gateway...");
+    const tid = toast.loading("Syncing Paystack Nodes...");
     try {
         const res = await fetch('/api/terminal/banks');
         const text = await res.text();
@@ -122,19 +141,19 @@ export const TransactionTerminal: React.FC = () => {
         try {
             data = JSON.parse(text);
         } catch (e) {
-            throw new Error("Paystack returned HTML Error Page");
+            throw new Error("Proxy returned HTML (500 Error)");
         }
         
         setRawResponse(data);
         if (data.status === 'success') {
             setBanksList(data.data);
-            toast.success(`${data.data.length} Banks Active!`, { id: tid });
+            toast.success(`${data.data.length} Banks Synced!`, { id: tid });
         } else {
-            toast.error(data.message || "Gateway Rejected Sync", { id: tid });
+            toast.error(data.message || "Handshake Rejected", { id: tid });
         }
     } catch (e: any) {
-        toast.error("Connectivity Lost", { id: tid });
-        setRawResponse({ error: "Handshake Exception", details: e.message });
+        toast.error("Gateway Fault", { id: tid });
+        setRawResponse({ error: "Sync Exception", details: e.message });
     } finally {
         setIsLoading(false);
     }
@@ -142,23 +161,26 @@ export const TransactionTerminal: React.FC = () => {
 
   const resolveAccount = async () => {
     if (!manualPaystack.accountNumber || !manualPaystack.bankCode) {
-        return toast.error("Provide Bank & Account No");
+        return toast.error("Provide Bank & Account");
     }
     setIsLoading(true);
     setRawResponse(null);
-    const tid = toast.loading("Resolving Identity Node...");
+    const tid = toast.loading("Verifying Account Identity...");
     try {
         const res = await fetch(`/api/terminal/resolve?accountNumber=${manualPaystack.accountNumber}&bankCode=${manualPaystack.bankCode}`);
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch(e) { throw new Error("Provider returned error page"); }
+        
         setRawResponse(data);
         if (data.status === 'success') {
-            toast.success(`Identity Match: ${data.data.account_name}`, { id: tid });
+            toast.success(`Matched: ${data.data.account_name}`, { id: tid });
         } else {
-            toast.error(data.message || "Match Failed", { id: tid });
+            toast.error(data.message || "Identity Refused", { id: tid });
         }
     } catch (e: any) {
-        toast.error("Sync Protocol Fault", { id: tid });
-        setRawResponse({ error: "JSON Parse Exception", details: e.message });
+        toast.error("Protocol Fault", { id: tid });
+        setRawResponse({ error: "Node Exception", details: e.message });
     } finally {
         setIsLoading(false);
     }
@@ -170,7 +192,7 @@ export const TransactionTerminal: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-center gap-8 border-b border-slate-900 pb-10">
         <div>
           <h1 className="text-4xl font-black text-white tracking-tighter uppercase">OBATA <span className="text-blue-500">CORE HUB</span></h1>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">API Verification Module v2.3 (CJS)</p>
+          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">Gateway Diagnostic Suite v2.5</p>
         </div>
 
         <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
@@ -193,9 +215,9 @@ export const TransactionTerminal: React.FC = () => {
                         <div className="flex justify-between items-center mb-10">
                             <div>
                                 <h3 className="text-xl font-black text-white flex items-center">
-                                    <Database className="w-6 h-6 mr-3 text-blue-500" /> Registry Sync
+                                    <Database className="w-6 h-6 mr-3 text-blue-500" /> Registry Ingestion
                                 </h3>
-                                <p className="text-slate-500 text-xs mt-1">Mirror Inlomax Catalog to Firebase</p>
+                                <p className="text-slate-500 text-xs mt-1">Sync Catalog to Firebase Firestore</p>
                             </div>
                             <button 
                                 onClick={syncServices} 
@@ -207,11 +229,24 @@ export const TransactionTerminal: React.FC = () => {
                             </button>
                         </div>
 
+                        {rawResponse?.status === "SECURITY_BLOCK" && (
+                            <div className="mb-8 p-6 bg-rose-500/10 border border-rose-500/20 rounded-3xl animate-pulse">
+                                <div className="flex items-center text-rose-500 mb-3">
+                                    <ShieldAlert className="w-5 h-5 mr-3" />
+                                    <h4 className="text-[10px] font-black uppercase tracking-widest">Action Required: Database Rules</h4>
+                                </div>
+                                <p className="text-slate-400 text-[11px] leading-relaxed">
+                                    The API handshake was successful, but your <b>Firebase Firestore Rules</b> are blocking the data write. 
+                                    Update rules for the <code>synced_services</code> collection in your Firebase Console.
+                                </p>
+                            </div>
+                        )}
+
                         <div className="space-y-4 max-h-[500px] overflow-y-auto pr-3 no-scrollbar border-t border-slate-800/50 pt-8">
                             {syncedServices.length === 0 ? (
                                 <div className="py-24 text-center border-2 border-dashed border-slate-800 rounded-[2.5rem]">
                                     <Search className="w-12 h-12 mx-auto mb-6 text-slate-800" />
-                                    <p className="text-slate-600 font-black uppercase tracking-widest text-xs">Registry Node Standby</p>
+                                    <p className="text-slate-600 font-black uppercase tracking-widest text-[10px]">Registry Node Offline</p>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -222,7 +257,7 @@ export const TransactionTerminal: React.FC = () => {
                                             </div>
                                             <div className="truncate">
                                                 <p className="text-white font-black uppercase text-[10px] truncate">{svc.label}</p>
-                                                <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">ID: {svc.serviceID}</p>
+                                                <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">ID: {svc.serviceID || 'STATIC'}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -246,7 +281,7 @@ export const TransactionTerminal: React.FC = () => {
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block ml-1">Account Identifier (10 Digits)</label>
+                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block ml-1">Account Number</label>
                                     <input 
                                         type="text" maxLength={10} value={manualPaystack.accountNumber} 
                                         onChange={e => setManualPaystack({...manualPaystack, accountNumber: e.target.value.replace(/\D/g, '')})}
@@ -255,14 +290,14 @@ export const TransactionTerminal: React.FC = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block ml-1">Target Bank Node</label>
+                                    <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 block ml-1">Target Node</label>
                                     <div className="flex gap-3">
                                         <select 
                                             value={manualPaystack.bankCode}
                                             onChange={e => setManualPaystack({...manualPaystack, bankCode: e.target.value})}
                                             className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl p-5 text-white font-black text-xs outline-none focus:border-emerald-500 appearance-none shadow-inner"
                                         >
-                                            <option value="">-- CHOOSE BANK --</option>
+                                            <option value="">-- SELECT BANK --</option>
                                             {banksList.map(b => <option key={b.id} value={b.code}>{b.name.toUpperCase()}</option>)}
                                         </select>
                                         <button onClick={fetchBanks} className="bg-slate-800 hover:bg-white hover:text-black p-5 rounded-2xl transition-all shadow-lg active:scale-90" title="Refresh Node List">
@@ -276,7 +311,7 @@ export const TransactionTerminal: React.FC = () => {
                                 disabled={isLoading}
                                 className="w-full mt-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-6 rounded-3xl transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center active:scale-95"
                             >
-                                {isLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <><Play className="w-6 h-6 mr-3" /> VERIFY IDENTITY</>}
+                                {isLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <><Play className="w-6 h-6 mr-3" /> VERIFY NODE IDENTITY</>}
                             </button>
                          </div>
                     </div>
@@ -286,11 +321,11 @@ export const TransactionTerminal: React.FC = () => {
                             <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center">
                                 <Landmark className="w-5 h-5 mr-3 text-slate-500" /> Infrastructure Node Directory
                             </h3>
-                            <span className="text-[10px] text-emerald-500 font-black bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20">{banksList.length} Nodes Active</span>
+                            <span className="text-[10px] text-emerald-500 font-black bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20">{banksList.length} Nodes Loaded</span>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-[250px] overflow-y-auto pr-3 no-scrollbar custom-scroll">
                             {banksList.length === 0 ? (
-                                <div className="col-span-4 py-12 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest animate-pulse">Awaiting Handshake Protocol...</div>
+                                <div className="col-span-4 py-12 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest animate-pulse">Awaiting Uplink...</div>
                             ) : (
                                 banksList.map(b => (
                                     <div key={b.id} className="bg-slate-950 border border-slate-800 p-4 rounded-xl text-[8px] font-black text-slate-400 uppercase truncate hover:text-white transition-colors">
@@ -323,7 +358,7 @@ export const TransactionTerminal: React.FC = () => {
             <div className="bg-black border border-slate-800 rounded-[3rem] overflow-hidden flex flex-col h-[650px] shadow-2xl relative">
                 <div className="p-8 border-b border-slate-900 flex justify-between items-center bg-slate-950/50">
                     <h3 className="text-[10px] font-black text-white uppercase tracking-[0.3em] flex items-center">
-                        <Terminal className="w-4 h-4 mr-3 text-emerald-500" /> Node Response Matrix
+                        <Terminal className="w-4 h-4 mr-3 text-emerald-500" /> Response Matrix
                     </h3>
                     <button onClick={() => setRawResponse(null)} className="text-[8px] font-black text-slate-600 hover:text-white uppercase tracking-widest transition-colors">Flush</button>
                 </div>
@@ -331,7 +366,7 @@ export const TransactionTerminal: React.FC = () => {
                     {!rawResponse ? (
                         <div className="h-full flex flex-col items-center justify-center opacity-10">
                             <LayoutGrid className="w-16 h-16 animate-pulse" />
-                            <p className="text-[9px] font-black uppercase tracking-[0.5em] mt-8">Awaiting Command</p>
+                            <p className="text-[9px] font-black uppercase tracking-[0.5em] mt-8 text-center">Awaiting Data Command</p>
                         </div>
                     ) : (
                         <pre className={`leading-relaxed whitespace-pre-wrap ${rawResponse.status === 'success' || rawResponse.success ? 'text-blue-400' : 'text-rose-400'}`}>
@@ -344,10 +379,10 @@ export const TransactionTerminal: React.FC = () => {
             <div className="bg-slate-900/50 border border-slate-800 p-8 rounded-[2.5rem]">
                 <div className="flex items-center space-x-3 mb-4">
                     <ShieldCheck className="w-5 h-5 text-emerald-500" />
-                    <h4 className="text-white font-black text-[10px] uppercase tracking-widest">Protocol Guard</h4>
+                    <h4 className="text-white font-black text-[10px] uppercase tracking-widest">Infrastructure Guide</h4>
                 </div>
                 <p className="text-slate-500 text-[10px] font-bold leading-relaxed uppercase tracking-tighter">
-                    CJS Engine Active. If matrix returns 500, check the "Functions" tab in Vercel. A SyntaxError in the build indicates Node version mismatch.
+                    Ensure "VITE_PAYSTACK_PUBLIC_KEY" is set in Vercel. For Firestore permission errors, set rules to "allow write: if true" temporarily to confirm linkage.
                 </p>
             </div>
         </div>
