@@ -35,7 +35,7 @@ export const Dashboard: React.FC = () => {
       {/* Greeting & Promo */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 px-1">
         <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-1 text-left">
             {greeting}, <span className="text-blue-500 capitalize">{userProfile?.username || 'User'}</span>
             </h1>
             <PromoTypingBanner />
@@ -59,17 +59,17 @@ export const Dashboard: React.FC = () => {
                 <div className="bg-blue-600/20 p-2.5 rounded-2xl border border-blue-500/20">
                   <Wallet className="w-6 h-6 text-blue-400" />
                 </div>
-                <span className="text-slate-400 font-semibold tracking-wide text-sm">TOTAL BALANCE</span>
+                <span className="text-slate-400 font-semibold tracking-wide text-sm uppercase">Total Balance</span>
               </div>
               <button 
                 onClick={() => setShowBalance(!showBalance)}
                 className="bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white p-2.5 rounded-xl border border-slate-700 transition-all active:scale-95"
               >
-                {showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                {!showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
 
-            <div className="mb-10">
+            <div className="mb-10 text-left">
               <div className="flex items-baseline space-x-1">
                 <span className="text-2xl md:text-3xl font-bold text-blue-500">₦</span>
                 <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none font-mono">
@@ -78,7 +78,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="mt-4 flex items-center text-emerald-400 text-sm font-bold bg-emerald-500/10 w-fit px-3 py-1 rounded-full border border-emerald-500/20">
                 <TrendingUp className="w-4 h-4 mr-1.5" />
-                <span>+2.4% this week</span>
+                <span>+2.4% system growth</span>
               </div>
             </div>
 
@@ -106,14 +106,14 @@ export const Dashboard: React.FC = () => {
            <div className="absolute top-0 right-0 p-4 opacity-5">
               <Zap className="w-32 h-32 text-amber-500" />
            </div>
-           <div>
-              <p className="text-slate-400 font-bold text-sm mb-1">COMMISSION</p>
+           <div className="text-left">
+              <p className="text-slate-400 font-bold text-sm mb-1 uppercase">Commission</p>
               <h3 className="text-3xl font-black text-amber-500 font-mono">
                 ₦{showBalance ? (userProfile?.commissionBalance || 0).toLocaleString() : '••••'}
               </h3>
            </div>
-           <div className="mt-8 pt-8 border-t border-slate-800/50">
-              <p className="text-slate-400 font-bold text-sm mb-1">SAVINGS</p>
+           <div className="mt-8 pt-8 border-t border-slate-800/50 text-left">
+              <p className="text-slate-400 font-bold text-sm mb-1 uppercase">Savings</p>
               <h3 className="text-3xl font-black text-emerald-500 font-mono">
                 ₦{showBalance ? (userProfile?.savingsBalance || 0).toLocaleString() : '••••'}
               </h3>
@@ -128,7 +128,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Quick Links */}
-      <div>
+      <div className="text-left">
         <div className="flex items-center justify-between mb-6 px-1">
           <h3 className="text-lg font-bold text-white flex items-center">
             <Zap className="w-5 h-5 mr-2 text-amber-400 fill-amber-400/20" />
@@ -159,7 +159,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* Recent Transactions */}
-      <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-xl">
+      <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-xl text-left">
         <div className="p-8 border-b border-slate-800 flex justify-between items-center">
             <h3 className="text-xl font-bold text-white">Recent Activity</h3>
             <button onClick={() => navigate('/history')} className="text-blue-400 text-sm font-bold hover:text-blue-300 flex items-center transition-colors">
@@ -185,4 +185,23 @@ export const Dashboard: React.FC = () => {
                             <div>
                                 <p className="text-white font-bold text-sm group-hover:text-blue-400 transition-colors">{tx.description}</p>
                                 <p className="text-xs text-slate-500 font-medium flex items-center mt-1">
-                                    {tx.date?.toDate ? tx.date.toDate().toLocaleDateString
+                                    {tx.date?.toDate ? tx.date.toDate().toLocaleDateString() : 'Just now'}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="text-right">
+                            <p className={`font-black text-lg ${tx.type === 'CREDIT' || tx.type === 'FUNDING' ? 'text-emerald-400' : 'text-slate-100'}`}>
+                                {tx.type === 'CREDIT' || tx.type === 'FUNDING' ? '+' : '-'}₦{tx.amount?.toLocaleString()}
+                            </p>
+                            <p className={`text-[9px] font-black uppercase tracking-widest mt-1 ${tx.status === 'SUCCESS' ? 'text-emerald-500' : tx.status === 'FAILED' ? 'text-rose-500' : 'text-amber-500'}`}>
+                                {tx.status}
+                            </p>
+                        </div>
+                    </div>
+                ))
+            )}
+        </div>
+      </div>
+    </div>
+  );
+};
