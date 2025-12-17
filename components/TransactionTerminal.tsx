@@ -149,17 +149,26 @@ export const TransactionTerminal: React.FC = () => {
         }
 
         const res = await fetch(endpoint + params);
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error("Bridge returned non-JSON response.");
+        }
+        
         setRawResponse(data);
         
-        if (data.status === 'success' || data.customerName) {
+        if (data.status === 'success' || data.customerName || data.data?.customerName) {
             const name = data.customerName || data.data?.customerName || "Verified Account";
             toast.success(`Identity Matched: ${name}`, { id: tid });
         } else {
-            toast.error(data.message || "Identity Rejection", { id: tid });
+            const err = data.message || data.details?.message || "Identity Rejection";
+            toast.error(err, { id: tid });
         }
     } catch (e: any) {
         toast.error(e.message, { id: tid });
+        setRawResponse({ status: "error", error: e.message });
     } finally {
         setIsLoading(false);
     }

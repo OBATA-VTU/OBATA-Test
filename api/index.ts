@@ -25,7 +25,9 @@ const PAYSTACK_SECRET =
     '';
 
 const callInlomax = async (endpoint: string, payload: any, method: string = 'POST') => {
-  const url = `${INLOMAX_BASE_URL}${endpoint}`;
+  // Ensure we don't have double slashes if base has trailing
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${INLOMAX_BASE_URL}${cleanEndpoint}`;
   
   try {
     const config: AxiosRequestConfig = {
@@ -42,16 +44,21 @@ const callInlomax = async (endpoint: string, payload: any, method: string = 'POS
     
     if (method === 'POST') {
       config.data = payload;
+    } else if (method === 'GET' && Object.keys(payload).length > 0) {
+      config.params = payload;
     }
 
     const response = await axios(config);
     return { success: true, data: response.data, status: response.status };
   } catch (error: any) {
-    const errorData = error.response?.data || { message: error.message };
-    console.error(`[Inlomax Fault] ${endpoint}:`, errorData);
+    const errorData = error.response?.data || error.message;
+    console.error(`[Inlomax Fault] ${endpoint}:`, typeof errorData === 'string' && errorData.includes('<!DOCTYPE') ? 'HTML_ERROR_PAGE' : errorData);
+    
     return {
       success: false,
-      error: errorData,
+      error: typeof errorData === 'string' && errorData.includes('<!DOCTYPE') 
+        ? { message: "Route Not Found on Provider Node (404)", code: "ENDPOINT_MISMATCH" } 
+        : errorData,
       status: error.response?.status || 500
     };
   }
@@ -70,16 +77,18 @@ app.get('/api/terminal/services', async (_req: Request, res: Response) => {
 });
 
 // --- VALIDATION ROUTES ---
+// Corrected to standard Inlomax lookup endpoints (GET /validate-iuc and GET /validate-meter)
 
 app.get('/api/terminal/validate-cable', async (req: Request, res: Response) => {
   const { serviceID, iucNumber } = req.query;
-  const result = await callInlomax('/validate-cable', { serviceID, iucNumber }, 'POST');
+  // Inlomax standard endpoint is usually /validate-iuc
+  const result = await callInlomax('/validate-iuc', { serviceID, iucNumber }, 'GET');
   res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Cable Validation Node Fault", details: result.error });
 });
 
 app.get('/api/terminal/validate-meter', async (req: Request, res: Response) => {
   const { serviceID, meterNumber, meterType } = req.query;
-  const result = await callInlomax('/validate-meter', { serviceID, meterNumber, meterType }, 'POST');
+  const result = await callInlomax('/validate-meter', { serviceID, meterNumber, meterType }, 'GET');
   res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Meter Validation Node Fault", details: result.error });
 });
 
