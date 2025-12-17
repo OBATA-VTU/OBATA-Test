@@ -16,6 +16,8 @@ const PAYSTACK_SECRET = process.env.VITE_PAYSTACK_SECRET_KEY || '';
 
 const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST' = 'POST') => {
   const url = `${INLOMAX_BASE_URL}${endpoint}`;
+  console.log(`[Proxy] Calling Inlomax: ${method} ${url}`);
+  
   try {
     const config: any = {
       method,
@@ -24,7 +26,7 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
         'Authorization': `Token ${INLOMAX_API_KEY}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'ObataVTU-Terminal/2.1'
+        'User-Agent': 'ObataVTU-Terminal/2.2'
       },
       timeout: 25000 
     };
@@ -34,12 +36,14 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
     }
 
     const response = await axios(config);
+    console.log(`[Proxy] Inlomax Response: ${response.status}`);
     return { success: true, data: response.data, status: response.status };
   } catch (error: any) {
-    console.error(`Proxy Error [${endpoint}]:`, error.response?.data || error.message);
+    const errorData = error.response?.data || { message: error.message };
+    console.error(`[Proxy] Inlomax Error [${endpoint}]:`, errorData);
     return {
       success: false,
-      error: error.response?.data || { message: error.message },
+      error: errorData,
       status: error.response?.status || 500
     };
   }
@@ -47,22 +51,26 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
 
 // --- SYSTEM ROUTES ---
 
-// Inlomax Balance - Fixed unused req
+// Inlomax Balance
 app.get('/api/terminal/balance', async (_req, res) => {
   const result = await callInlomax('/balance', {}, 'GET');
-  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Balance Node Unreachable", details: result.error });
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Balance Fetch Failed", details: result.error });
 });
 
-// Inlomax Catalog Sync - Fixed unused req
+// Inlomax Catalog Sync
 app.get('/api/terminal/services', async (_req, res) => {
   const result = await callInlomax('/services', {}, 'GET');
-  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Sync Node Unreachable", details: result.error });
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Catalog Sync Failed", details: result.error });
 });
 
-// Paystack Bank Fetch - Fixed unused req & Added HTML Catch
+// Paystack Bank Fetch
 app.get('/api/terminal/banks', async (_req, res) => {
+    console.log("[Proxy] Fetching Paystack Banks...");
     try {
-        if (!PAYSTACK_SECRET) throw new Error("Paystack Secret Key Missing in Environment");
+        if (!PAYSTACK_SECRET) {
+            console.error("[Proxy] Missing PAYSTACK_SECRET env variable");
+            return res.status(500).json({ status: 'error', message: "Server Configuration Error: Missing Secret Key" });
+        }
         
         const response = await axios.get('https://api.paystack.co/bank', {
             headers: { 
@@ -71,12 +79,15 @@ app.get('/api/terminal/banks', async (_req, res) => {
             },
             timeout: 10000
         });
+        console.log("[Proxy] Paystack Banks Fetched Successfully");
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
+        const errDetails = error.response?.data || error.message;
+        console.error("[Proxy] Paystack Bank Error:", errDetails);
         res.status(500).json({ 
             status: 'error', 
-            message: "Paystack Gateway Failed", 
-            details: typeof error.response?.data === 'string' ? { html_error: "Gateway returned non-JSON page" } : error.response?.data || error.message 
+            message: "Paystack Bank List Failed", 
+            details: typeof errDetails === 'string' && errDetails.startsWith('<!DOCTYPE') ? { html_error: "Provider returned HTML instead of JSON" } : errDetails 
         });
     }
 });
@@ -84,6 +95,7 @@ app.get('/api/terminal/banks', async (_req, res) => {
 // Paystack Account Resolve
 app.get('/api/terminal/resolve', async (req, res) => {
     const { accountNumber, bankCode } = req.query;
+    console.log(`[Proxy] Resolving Paystack Account: ${accountNumber} (${bankCode})`);
     try {
         if (!PAYSTACK_SECRET) throw new Error("Paystack Secret Key Missing");
         
@@ -96,10 +108,12 @@ app.get('/api/terminal/resolve', async (req, res) => {
         });
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
+        const errDetails = error.response?.data || error.message;
+        console.error("[Proxy] Paystack Resolve Error:", errDetails);
         res.status(500).json({ 
             status: 'error', 
             message: "Identity Resolve Failed", 
-            details: typeof error.response?.data === 'string' ? { html_error: "Provider returned error page" } : error.response?.data || error.message 
+            details: typeof errDetails === 'string' && errDetails.startsWith('<!DOCTYPE') ? { html_error: "Provider returned HTML error page" } : errDetails 
         });
     }
 });

@@ -29,14 +29,15 @@ export const TransactionTerminal: React.FC = () => {
     try {
       const res = await fetch('/api/terminal/balance');
       const data = await res.json();
-      if (data.status === 'success') {
-        setBalance(data.data.funds);
+      if (data.status === 'success' || (data.data && data.status === 'success')) {
+        setBalance(data.funds || data.data?.funds);
       } else {
         setBalanceError(true);
         setRawResponse(data);
       }
-    } catch (e) {
+    } catch (e: any) {
       setBalanceError(true);
+      setRawResponse({ error: "Network Error", details: e.message });
       console.error("Balance fetch error");
     }
   };
@@ -88,8 +89,8 @@ export const TransactionTerminal: React.FC = () => {
         toast.error("Provider Rejected Connection", { id: tid });
       }
     } catch (e: any) {
-      toast.error("Handshake Lost", { id: tid });
-      setRawResponse({ error: "Connection Terminated", hint: "Vercel environment key 'VITE_PAYSTACK_SECRET_KEY' may be missing." });
+      toast.error("Sync Failed", { id: tid });
+      setRawResponse({ error: "Client-side Exception", details: e.message });
     } finally {
       setIsSyncing(false);
     }
@@ -112,7 +113,7 @@ export const TransactionTerminal: React.FC = () => {
         }
     } catch (e: any) {
         toast.error("Connectivity Lost", { id: tid });
-        setRawResponse({ error: "Failed to parse provider response. Verify Paystack Secret Key." });
+        setRawResponse({ error: "Fetch Failed", details: e.message });
     } finally {
         setIsLoading(false);
     }
@@ -136,7 +137,7 @@ export const TransactionTerminal: React.FC = () => {
         }
     } catch (e: any) {
         toast.error("Gateway Sync Error", { id: tid });
-        setRawResponse({ error: "Provider returned non-JSON data." });
+        setRawResponse({ error: "Handshake Exception", details: e.message });
     } finally {
         setIsLoading(false);
     }
@@ -148,7 +149,7 @@ export const TransactionTerminal: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-center gap-8 border-b border-slate-900 pb-10">
         <div>
           <h1 className="text-4xl font-black text-white tracking-tighter uppercase">OBATA <span className="text-blue-500">CORE LAB</span></h1>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">API Verification Module v2.1</p>
+          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">API Verification Module v2.2</p>
         </div>
 
         <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
@@ -294,6 +295,7 @@ export const TransactionTerminal: React.FC = () => {
                     <h2 className={`text-3xl font-black font-mono tracking-tighter ${balanceError ? 'text-rose-500' : 'text-white'}`}>
                         {balance === null ? (balanceError ? 'ERR_LINK' : 'SYNCING...') : `₦${balance.toLocaleString()}`}
                     </h2>
+                    <button onClick={fetchStatus} className="text-[8px] font-black text-blue-400 uppercase tracking-widest hover:text-white mt-1">Re-Probe</button>
                 </div>
             </div>
 
@@ -324,7 +326,7 @@ export const TransactionTerminal: React.FC = () => {
                     <h4 className="text-white font-black text-[10px] uppercase tracking-widest">Protocol Guard</h4>
                 </div>
                 <p className="text-slate-500 text-[10px] font-bold leading-relaxed uppercase tracking-tighter">
-                    Every packet transmitted is verified via serverless proxy logic. 500 status indicates provider-side handshake refusal or invalid authorization header.
+                    Vercel Logging Enabled. Check "Functions" logs in dashboard for backend handshake detail. 500 status typically indicates a missing environment variable or provider-side IP block.
                 </p>
             </div>
         </div>
