@@ -19,7 +19,7 @@ if (!admin.apps.length) {
     });
 }
 
-const db = admin.firestore();
+// Removed unused 'db' declaration to fix TS6133 error
 
 // Configuration
 const INLOMAX_BASE_URL = 'https://inlomax.com/api'; 
@@ -103,7 +103,8 @@ app.post('/vtu/verify/cable', verifyAuth, async (req, res) => {
 });
 
 // --- Banking Routes (Paystack) ---
-app.get('/misc/banks', verifyAuth, async (req, res) => {
+// Prefixed 'req' with '_' to fix TS6133 error
+app.get('/misc/banks', verifyAuth, async (_req, res) => {
     try {
         console.log("FETCHING BANKS FROM PAYSTACK");
         const response = await axios.get('https://api.paystack.co/bank', {
