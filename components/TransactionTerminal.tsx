@@ -26,19 +26,26 @@ export const TransactionTerminal: React.FC = () => {
 
   const fetchStatus = async () => {
     setBalanceError(false);
+    setBalance(null);
     try {
       const res = await fetch('/api/terminal/balance');
-      const data = await res.json();
-      if (data.status === 'success' || (data.data && data.status === 'success')) {
-        setBalance(data.funds || data.data?.funds);
+      const text = await res.text();
+      let data;
+      try {
+          data = JSON.parse(text);
+      } catch (e) {
+          throw new Error("Gateway returned HTML: " + text.substring(0, 50));
+      }
+
+      if (data.status === 'success') {
+        setBalance(data.data?.funds ?? data.funds ?? 0);
       } else {
         setBalanceError(true);
         setRawResponse(data);
       }
     } catch (e: any) {
       setBalanceError(true);
-      setRawResponse({ error: "Network Error", details: e.message });
-      console.error("Balance fetch error");
+      setRawResponse({ error: "Node Connection Failed", details: e.message });
     }
   };
 
@@ -49,7 +56,7 @@ export const TransactionTerminal: React.FC = () => {
         querySnapshot.forEach((doc) => services.push({ id: doc.id, ...doc.data() }));
         setSyncedServices(services);
     } catch (e) {
-        console.error("Firestore access error");
+        console.error("Firestore Registry access failure");
     }
   };
 
@@ -65,7 +72,14 @@ export const TransactionTerminal: React.FC = () => {
     const tid = toast.loading("Connecting to Inlomax...");
     try {
       const res = await fetch('/api/terminal/services');
-      const result = await res.json();
+      const text = await res.text();
+      let result;
+      try {
+          result = JSON.parse(text);
+      } catch (e) {
+          throw new Error("Server returned non-JSON data (HTML Error Page)");
+      }
+      
       setRawResponse(result);
       
       if (result.status === 'success') {
@@ -83,14 +97,14 @@ export const TransactionTerminal: React.FC = () => {
         });
 
         await batch.commit();
-        toast.success("Database Updated Successfully!", { id: tid });
+        toast.success("Database Updated!", { id: tid });
         loadLocalServices();
       } else {
         toast.error("Provider Rejected Connection", { id: tid });
       }
     } catch (e: any) {
-      toast.error("Sync Failed", { id: tid });
-      setRawResponse({ error: "Client-side Exception", details: e.message });
+      toast.error("Handshake Lost", { id: tid });
+      setRawResponse({ error: "Communication Error", details: e.message, hint: "Check Vercel Deployment Logs for index.ts syntax errors." });
     } finally {
       setIsSyncing(false);
     }
@@ -100,20 +114,27 @@ export const TransactionTerminal: React.FC = () => {
   const fetchBanks = async () => {
     setIsLoading(true);
     setRawResponse(null);
-    const tid = toast.loading("Checking Paystack Gateway...");
+    const tid = toast.loading("Probing Paystack Gateway...");
     try {
         const res = await fetch('/api/terminal/banks');
-        const data = await res.json();
+        const text = await res.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (e) {
+            throw new Error("Paystack returned HTML Error Page");
+        }
+        
         setRawResponse(data);
         if (data.status === 'success') {
             setBanksList(data.data);
-            toast.success(`${data.data.length} Nodes Found!`, { id: tid });
+            toast.success(`${data.data.length} Banks Active!`, { id: tid });
         } else {
-            toast.error(data.message || "Paystack Handshake Refused", { id: tid });
+            toast.error(data.message || "Gateway Rejected Sync", { id: tid });
         }
     } catch (e: any) {
         toast.error("Connectivity Lost", { id: tid });
-        setRawResponse({ error: "Fetch Failed", details: e.message });
+        setRawResponse({ error: "Handshake Exception", details: e.message });
     } finally {
         setIsLoading(false);
     }
@@ -125,19 +146,19 @@ export const TransactionTerminal: React.FC = () => {
     }
     setIsLoading(true);
     setRawResponse(null);
-    const tid = toast.loading("Resolving Node Identity...");
+    const tid = toast.loading("Resolving Identity Node...");
     try {
         const res = await fetch(`/api/terminal/resolve?accountNumber=${manualPaystack.accountNumber}&bankCode=${manualPaystack.bankCode}`);
         const data = await res.json();
         setRawResponse(data);
         if (data.status === 'success') {
-            toast.success(`Identity Confirmed: ${data.data.account_name}`, { id: tid });
+            toast.success(`Identity Match: ${data.data.account_name}`, { id: tid });
         } else {
-            toast.error(data.message || "Resolution Error", { id: tid });
+            toast.error(data.message || "Match Failed", { id: tid });
         }
     } catch (e: any) {
-        toast.error("Gateway Sync Error", { id: tid });
-        setRawResponse({ error: "Handshake Exception", details: e.message });
+        toast.error("Sync Protocol Fault", { id: tid });
+        setRawResponse({ error: "JSON Parse Exception", details: e.message });
     } finally {
         setIsLoading(false);
     }
@@ -148,8 +169,8 @@ export const TransactionTerminal: React.FC = () => {
       {/* Main Header */}
       <div className="flex flex-col md:flex-row justify-between items-center gap-8 border-b border-slate-900 pb-10">
         <div>
-          <h1 className="text-4xl font-black text-white tracking-tighter uppercase">OBATA <span className="text-blue-500">CORE LAB</span></h1>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">API Verification Module v2.2</p>
+          <h1 className="text-4xl font-black text-white tracking-tighter uppercase">OBATA <span className="text-blue-500">CORE HUB</span></h1>
+          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">API Verification Module v2.3 (CJS)</p>
         </div>
 
         <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
@@ -172,9 +193,9 @@ export const TransactionTerminal: React.FC = () => {
                         <div className="flex justify-between items-center mb-10">
                             <div>
                                 <h3 className="text-xl font-black text-white flex items-center">
-                                    <Database className="w-6 h-6 mr-3 text-blue-500" /> Catalog Telemetry
+                                    <Database className="w-6 h-6 mr-3 text-blue-500" /> Registry Sync
                                 </h3>
-                                <p className="text-slate-500 text-xs mt-1">Direct handshake with Inlomax Registry</p>
+                                <p className="text-slate-500 text-xs mt-1">Mirror Inlomax Catalog to Firebase</p>
                             </div>
                             <button 
                                 onClick={syncServices} 
@@ -182,7 +203,7 @@ export const TransactionTerminal: React.FC = () => {
                                 className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all flex items-center shadow-xl shadow-blue-600/20"
                             >
                                 {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin mr-3" /> : <CloudLightning className="w-4 h-4 mr-3" />}
-                                Initialize Sync
+                                Sync Services
                             </button>
                         </div>
 
@@ -201,7 +222,7 @@ export const TransactionTerminal: React.FC = () => {
                                             </div>
                                             <div className="truncate">
                                                 <p className="text-white font-black uppercase text-[10px] truncate">{svc.label}</p>
-                                                <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">Inlomax-ID: {svc.serviceID}</p>
+                                                <p className="text-[8px] text-slate-600 font-bold uppercase tracking-widest">ID: {svc.serviceID}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -221,7 +242,7 @@ export const TransactionTerminal: React.FC = () => {
                          </div>
                          <div className="relative z-10">
                             <h3 className="text-xl font-black text-white mb-8 flex items-center">
-                                <Code className="w-6 h-6 mr-3 text-emerald-500" /> Infrastructure Resolver
+                                <Code className="w-6 h-6 mr-3 text-emerald-500" /> Identity Resolver
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
@@ -241,10 +262,10 @@ export const TransactionTerminal: React.FC = () => {
                                             onChange={e => setManualPaystack({...manualPaystack, bankCode: e.target.value})}
                                             className="flex-1 bg-slate-950 border border-slate-800 rounded-2xl p-5 text-white font-black text-xs outline-none focus:border-emerald-500 appearance-none shadow-inner"
                                         >
-                                            <option value="">-- CHOOSE NODE --</option>
+                                            <option value="">-- CHOOSE BANK --</option>
                                             {banksList.map(b => <option key={b.id} value={b.code}>{b.name.toUpperCase()}</option>)}
                                         </select>
-                                        <button onClick={fetchBanks} className="bg-slate-800 hover:bg-white hover:text-black p-5 rounded-2xl transition-all shadow-lg active:scale-90" title="Refresh List">
+                                        <button onClick={fetchBanks} className="bg-slate-800 hover:bg-white hover:text-black p-5 rounded-2xl transition-all shadow-lg active:scale-90" title="Refresh Node List">
                                             <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
                                         </button>
                                     </div>
@@ -255,7 +276,7 @@ export const TransactionTerminal: React.FC = () => {
                                 disabled={isLoading}
                                 className="w-full mt-8 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-6 rounded-3xl transition-all shadow-xl shadow-emerald-600/20 flex items-center justify-center active:scale-95"
                             >
-                                {isLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <><Play className="w-6 h-6 mr-3" /> EXECUTE IDENTITY CHECK</>}
+                                {isLoading ? <RefreshCw className="w-6 h-6 animate-spin" /> : <><Play className="w-6 h-6 mr-3" /> VERIFY IDENTITY</>}
                             </button>
                          </div>
                     </div>
@@ -263,13 +284,13 @@ export const TransactionTerminal: React.FC = () => {
                     <div className="bg-slate-900 border border-slate-800 rounded-[3.5rem] p-10 shadow-2xl relative overflow-hidden">
                         <div className="flex items-center justify-between mb-8 border-b border-slate-800 pb-8">
                             <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] flex items-center">
-                                <Landmark className="w-5 h-5 mr-3 text-slate-500" /> Verified Node Directory
+                                <Landmark className="w-5 h-5 mr-3 text-slate-500" /> Infrastructure Node Directory
                             </h3>
                             <span className="text-[10px] text-emerald-500 font-black bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20">{banksList.length} Nodes Active</span>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-h-[250px] overflow-y-auto pr-3 no-scrollbar custom-scroll">
                             {banksList.length === 0 ? (
-                                <div className="col-span-4 py-12 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest animate-pulse">Awaiting Gateway Handshake...</div>
+                                <div className="col-span-4 py-12 text-center text-slate-700 font-black uppercase text-[10px] tracking-widest animate-pulse">Awaiting Handshake Protocol...</div>
                             ) : (
                                 banksList.map(b => (
                                     <div key={b.id} className="bg-slate-950 border border-slate-800 p-4 rounded-xl text-[8px] font-black text-slate-400 uppercase truncate hover:text-white transition-colors">
@@ -295,7 +316,7 @@ export const TransactionTerminal: React.FC = () => {
                     <h2 className={`text-3xl font-black font-mono tracking-tighter ${balanceError ? 'text-rose-500' : 'text-white'}`}>
                         {balance === null ? (balanceError ? 'ERR_LINK' : 'SYNCING...') : `₦${balance.toLocaleString()}`}
                     </h2>
-                    <button onClick={fetchStatus} className="text-[8px] font-black text-blue-400 uppercase tracking-widest hover:text-white mt-1">Re-Probe</button>
+                    <button onClick={fetchStatus} className="text-[8px] font-black text-blue-400 uppercase tracking-widest hover:text-white mt-1 underline decoration-blue-500/30">Re-Probe Link</button>
                 </div>
             </div>
 
@@ -326,7 +347,7 @@ export const TransactionTerminal: React.FC = () => {
                     <h4 className="text-white font-black text-[10px] uppercase tracking-widest">Protocol Guard</h4>
                 </div>
                 <p className="text-slate-500 text-[10px] font-bold leading-relaxed uppercase tracking-tighter">
-                    Vercel Logging Enabled. Check "Functions" logs in dashboard for backend handshake detail. 500 status typically indicates a missing environment variable or provider-side IP block.
+                    CJS Engine Active. If matrix returns 500, check the "Functions" tab in Vercel. A SyntaxError in the build indicates Node version mismatch.
                 </p>
             </div>
         </div>

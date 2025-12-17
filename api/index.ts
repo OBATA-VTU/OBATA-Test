@@ -1,6 +1,7 @@
-import express from 'express';
+// Convert require to import to resolve Node.js type definition errors in ESM environment
+import express, { Request, Response } from 'express';
 import cors from 'cors';
-import axios from 'axios';
+import axios, { AxiosRequestConfig } from 'axios';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,19 +15,21 @@ const INLOMAX_BASE_URL = 'https://inlomax.com/api';
 const INLOMAX_API_KEY = 'se2h4rl9cqhabg07tft55ivg4sp9b0a5jca1u3qe';
 const PAYSTACK_SECRET = process.env.VITE_PAYSTACK_SECRET_KEY || '';
 
-const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST' = 'POST') => {
+// Added explicit typing for parameters to resolve implicit 'any' issues
+const callInlomax = async (endpoint: string, payload: any, method: string = 'POST') => {
   const url = `${INLOMAX_BASE_URL}${endpoint}`;
   console.log(`[Proxy] Calling Inlomax: ${method} ${url}`);
   
   try {
-    const config: any = {
+    // Explicitly type config as AxiosRequestConfig to fix the error where 'data' property was not found on a literal type
+    const config: AxiosRequestConfig = {
       method,
       url,
       headers: {
         'Authorization': `Token ${INLOMAX_API_KEY}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'ObataVTU-Terminal/2.2'
+        'User-Agent': 'ObataVTU-Terminal/2.3'
       },
       timeout: 25000 
     };
@@ -51,25 +54,22 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
 
 // --- SYSTEM ROUTES ---
 
-// Inlomax Balance
-app.get('/api/terminal/balance', async (_req, res) => {
+// Use Request and Response types from express for route handlers
+app.get('/api/terminal/balance', async (_req: Request, res: Response) => {
   const result = await callInlomax('/balance', {}, 'GET');
-  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Balance Fetch Failed", details: result.error });
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Inlomax Balance Unreachable", details: result.error });
 });
 
-// Inlomax Catalog Sync
-app.get('/api/terminal/services', async (_req, res) => {
+app.get('/api/terminal/services', async (_req: Request, res: Response) => {
   const result = await callInlomax('/services', {}, 'GET');
-  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Catalog Sync Failed", details: result.error });
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Catalog Sync Blocked", details: result.error });
 });
 
-// Paystack Bank Fetch
-app.get('/api/terminal/banks', async (_req, res) => {
+app.get('/api/terminal/banks', async (_req: Request, res: Response) => {
     console.log("[Proxy] Fetching Paystack Banks...");
     try {
         if (!PAYSTACK_SECRET) {
-            console.error("[Proxy] Missing PAYSTACK_SECRET env variable");
-            return res.status(500).json({ status: 'error', message: "Server Configuration Error: Missing Secret Key" });
+            return res.status(500).json({ status: 'error', message: "Vercel Environment Missing VITE_PAYSTACK_SECRET_KEY" });
         }
         
         const response = await axios.get('https://api.paystack.co/bank', {
@@ -79,25 +79,21 @@ app.get('/api/terminal/banks', async (_req, res) => {
             },
             timeout: 10000
         });
-        console.log("[Proxy] Paystack Banks Fetched Successfully");
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
         const errDetails = error.response?.data || error.message;
-        console.error("[Proxy] Paystack Bank Error:", errDetails);
         res.status(500).json({ 
             status: 'error', 
-            message: "Paystack Bank List Failed", 
-            details: typeof errDetails === 'string' && errDetails.startsWith('<!DOCTYPE') ? { html_error: "Provider returned HTML instead of JSON" } : errDetails 
+            message: "Paystack Gateway Failed", 
+            details: typeof errDetails === 'string' ? { raw: "Provider returned non-json response" } : errDetails 
         });
     }
 });
 
-// Paystack Account Resolve
-app.get('/api/terminal/resolve', async (req, res) => {
+app.get('/api/terminal/resolve', async (req: Request, res: Response) => {
     const { accountNumber, bankCode } = req.query;
-    console.log(`[Proxy] Resolving Paystack Account: ${accountNumber} (${bankCode})`);
     try {
-        if (!PAYSTACK_SECRET) throw new Error("Paystack Secret Key Missing");
+        if (!PAYSTACK_SECRET) throw new Error("Paystack Secret Missing");
         
         const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
             headers: { 
@@ -109,13 +105,13 @@ app.get('/api/terminal/resolve', async (req, res) => {
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
         const errDetails = error.response?.data || error.message;
-        console.error("[Proxy] Paystack Resolve Error:", errDetails);
         res.status(500).json({ 
             status: 'error', 
             message: "Identity Resolve Failed", 
-            details: typeof errDetails === 'string' && errDetails.startsWith('<!DOCTYPE') ? { html_error: "Provider returned HTML error page" } : errDetails 
+            details: typeof errDetails === 'string' ? { raw: "Provider returned error page" } : errDetails 
         });
     }
 });
 
+// Convert module.exports to export default for ESM compatibility
 export default app;
