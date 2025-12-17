@@ -12,7 +12,7 @@ app.use(express.json());
 // OBATA VTU CORE CONFIGURATION
 const INLOMAX_BASE_URL = 'https://inlomax.com/api';
 const INLOMAX_API_KEY = 'se2h4rl9cqhabg07tft55ivg4sp9b0a5jca1u3qe';
-const PAYSTACK_SECRET = process.env.VITE_PAYSTACK_SECRET_KEY || 'sk_live_fallback_check_env';
+const PAYSTACK_SECRET = process.env.VITE_PAYSTACK_SECRET_KEY || '';
 
 const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST' = 'POST') => {
   const url = `${INLOMAX_BASE_URL}${endpoint}`;
@@ -24,9 +24,9 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
         'Authorization': `Token ${INLOMAX_API_KEY}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'User-Agent': 'ObataVTU-Terminal/2.0'
+        'User-Agent': 'ObataVTU-Terminal/2.1'
       },
-      timeout: 30000 // Extended to 30s for large catalog sync
+      timeout: 25000 
     };
     
     if (method === 'POST') {
@@ -47,27 +47,37 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
 
 // --- SYSTEM ROUTES ---
 
-// Inlomax Balance
-app.get('/api/terminal/balance', async (req, res) => {
+// Inlomax Balance - Fixed unused req
+app.get('/api/terminal/balance', async (_req, res) => {
   const result = await callInlomax('/balance', {}, 'GET');
-  res.status(result.status).json(result.success ? result.data : result.error);
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Balance Node Unreachable", details: result.error });
 });
 
-// Inlomax Catalog Sync
-app.get('/api/terminal/services', async (req, res) => {
+// Inlomax Catalog Sync - Fixed unused req
+app.get('/api/terminal/services', async (_req, res) => {
   const result = await callInlomax('/services', {}, 'GET');
-  res.status(result.status).json(result.success ? result.data : result.error);
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Sync Node Unreachable", details: result.error });
 });
 
-// Paystack Bank Fetch
-app.get('/api/terminal/banks', async (req, res) => {
+// Paystack Bank Fetch - Fixed unused req & Added HTML Catch
+app.get('/api/terminal/banks', async (_req, res) => {
     try {
+        if (!PAYSTACK_SECRET) throw new Error("Paystack Secret Key Missing in Environment");
+        
         const response = await axios.get('https://api.paystack.co/bank', {
-            headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET}` }
+            headers: { 
+                'Authorization': `Bearer ${PAYSTACK_SECRET}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 10000
         });
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
-        res.status(500).json({ status: 'error', message: "Paystack Bridge Error", details: error.response?.data || error.message });
+        res.status(500).json({ 
+            status: 'error', 
+            message: "Paystack Gateway Failed", 
+            details: typeof error.response?.data === 'string' ? { html_error: "Gateway returned non-JSON page" } : error.response?.data || error.message 
+        });
     }
 });
 
@@ -75,12 +85,22 @@ app.get('/api/terminal/banks', async (req, res) => {
 app.get('/api/terminal/resolve', async (req, res) => {
     const { accountNumber, bankCode } = req.query;
     try {
+        if (!PAYSTACK_SECRET) throw new Error("Paystack Secret Key Missing");
+        
         const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
-            headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET}` }
+            headers: { 
+                'Authorization': `Bearer ${PAYSTACK_SECRET}`,
+                'Content-Type': 'application/json'
+            },
+            timeout: 10000
         });
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
-        res.status(500).json({ status: 'error', message: "Resolution Failed", details: error.response?.data || error.message });
+        res.status(500).json({ 
+            status: 'error', 
+            message: "Identity Resolve Failed", 
+            details: typeof error.response?.data === 'string' ? { html_error: "Provider returned error page" } : error.response?.data || error.message 
+        });
     }
 });
 
