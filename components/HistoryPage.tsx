@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Loader2, ArrowUpRight, ArrowDownLeft, FileText, Calendar, Clock } from 'lucide-react';
+import { Search, Loader2, ArrowUpRight, ArrowDownLeft, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -34,6 +34,13 @@ export const HistoryPage: React.FC = () => {
       t.description?.toLowerCase().includes(searchTerm.toLowerCase()) || 
       t.reference?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const getStatusBadge = (status: string) => {
+      const s = status?.toUpperCase() || 'PENDING';
+      if (s === 'SUCCESS') return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+      if (s === 'FAILED') return 'bg-red-500/10 text-red-500 border-red-500/20';
+      return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+  };
 
   return (
     <div className="space-y-6 animate-fade-in-up">
@@ -82,7 +89,11 @@ export const HistoryPage: React.FC = () => {
                          <td className="p-5 font-mono text-xs text-slate-500 group-hover:text-blue-400">{txn.reference || txn.id.substring(0,8)}</td>
                          <td className="p-5 text-slate-400 text-xs">{txn.date?.toDate ? txn.date.toDate().toLocaleDateString() : 'N/A'}</td>
                          <td className={`p-5 text-right font-bold text-base ${isCredit ? 'text-emerald-400' : 'text-slate-200'}`}>{isCredit ? '+' : '-'}₦{txn.amount.toLocaleString()}</td>
-                         <td className="p-5 text-center"><span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase ${txn.status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-amber-500/10 text-amber-500'}`}>{txn.status}</span></td>
+                         <td className="p-5 text-center">
+                             <span className={`px-3 py-1.5 rounded-md text-[10px] font-bold uppercase border tracking-wide ${getStatusBadge(txn.status)}`}>
+                                 {txn.status}
+                             </span>
+                         </td>
                       </tr>
                    )})}
                 </tbody>
