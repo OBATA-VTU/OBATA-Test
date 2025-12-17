@@ -14,15 +14,15 @@ const INLOMAX_BASE_URL = 'https://inlomax.com/api';
 const INLOMAX_API_KEY = 'se2h4rl9cqhabg07tft55ivg4sp9b0a5jca1u3qe';
 
 /**
- * PAYSTACK KEY RESOLUTION
- * Backend needs a key for bank sync/resolution. 
- * We check Secret first, then fallback to Public keys if provided in Vercel env.
+ * PAYSTACK SECRET KEY RESOLUTION
+ * Bank resolution and listing MUST use the Secret Key (sk_...).
+ * We look for PAYSTACK_SECRET_KEY first as it is the standard for server-side.
  */
-const PAYSTACK_KEY = 
+const PAYSTACK_SECRET = 
     process.env.PAYSTACK_SECRET_KEY || 
     process.env.VITE_PAYSTACK_SECRET_KEY || 
+    process.env.PAYSTACK_PUBLIC_KEY || // Fallback (will likely fail at Paystack)
     process.env.VITE_PAYSTACK_PUBLIC_KEY || 
-    process.env.PAYSTACK_PUBLIC_KEY || 
     '';
 
 const callInlomax = async (endpoint: string, payload: any, method: string = 'POST') => {
@@ -73,16 +73,24 @@ app.get('/api/terminal/services', async (_req: Request, res: Response) => {
 });
 
 app.get('/api/terminal/banks', async (_req: Request, res: Response) => {
-    console.log(`[Proxy] Probing Paystack... (Key Present: ${!!PAYSTACK_KEY})`);
+    console.log(`[Proxy] Probing Paystack... (Key Detected: ${PAYSTACK_SECRET.substring(0, 7)}...)`);
+    
     try {
-        if (!PAYSTACK_KEY) {
-            console.error("[Proxy] ERROR: No Paystack Key found in Vercel Environment Variables");
-            return res.status(500).json({ status: 'error', message: "Infrastructure Fault: Paystack Key (Public or Secret) Missing in Vercel Settings" });
+        if (!PAYSTACK_SECRET) {
+            return res.status(500).json({ status: 'error', message: "Infrastructure Fault: PAYSTACK_SECRET_KEY missing in Vercel" });
+        }
+
+        if (PAYSTACK_SECRET.startsWith('pk_')) {
+            return res.status(401).json({ 
+                status: 'error', 
+                message: "Security Mismatch: Public Key used instead of Secret Key",
+                details: "Paystack requires a Secret Key (sk_...) for backend bank lookups. Please update PAYSTACK_SECRET_KEY in Vercel."
+            });
         }
         
         const response = await axios.get('https://api.paystack.co/bank', {
             headers: { 
-                'Authorization': `Bearer ${PAYSTACK_KEY}`,
+                'Authorization': `Bearer ${PAYSTACK_SECRET}`,
                 'Content-Type': 'application/json'
             },
             timeout: 10000
@@ -102,12 +110,13 @@ app.get('/api/terminal/banks', async (_req: Request, res: Response) => {
 app.get('/api/terminal/resolve', async (req: Request, res: Response) => {
     const { accountNumber, bankCode } = req.query;
     console.log(`[Proxy] Resolving Identity: ${accountNumber} on ${bankCode}`);
+    
     try {
-        if (!PAYSTACK_KEY) throw new Error("Paystack Key Missing");
+        if (!PAYSTACK_SECRET) throw new Error("Paystack Secret Key Missing");
         
         const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
             headers: { 
-                'Authorization': `Bearer ${PAYSTACK_KEY}`,
+                'Authorization': `Bearer ${PAYSTACK_SECRET}`,
                 'Content-Type': 'application/json'
             },
             timeout: 10000

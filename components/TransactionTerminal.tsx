@@ -192,7 +192,7 @@ export const TransactionTerminal: React.FC = () => {
       <div className="flex flex-col md:flex-row justify-between items-center gap-8 border-b border-slate-900 pb-10">
         <div>
           <h1 className="text-4xl font-black text-white tracking-tighter uppercase">OBATA <span className="text-blue-500">CORE HUB</span></h1>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">Gateway Diagnostic Suite v2.5</p>
+          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.5em] mt-2">Gateway Diagnostic Suite v2.6</p>
         </div>
 
         <div className="flex bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
@@ -382,7 +382,7 @@ export const TransactionTerminal: React.FC = () => {
                     <h4 className="text-white font-black text-[10px] uppercase tracking-widest">Infrastructure Guide</h4>
                 </div>
                 <p className="text-slate-500 text-[10px] font-bold leading-relaxed uppercase tracking-tighter">
-                    Ensure "VITE_PAYSTACK_PUBLIC_KEY" is set in Vercel. For Firestore permission errors, set rules to "allow write: if true" temporarily to confirm linkage.
+                    Ensure "PAYSTACK_SECRET_KEY" (sk_live_...) is set in Vercel. For Firestore permission errors, set rules to "allow write: if true" temporarily to confirm linkage.
                 </p>
             </div>
         </div>
