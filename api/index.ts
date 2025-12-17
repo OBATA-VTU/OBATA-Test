@@ -26,7 +26,7 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
         'Accept': 'application/json',
         'User-Agent': 'ObataVTU-Terminal/2.0'
       },
-      timeout: 15000 // 15s timeout for large catalog fetches
+      timeout: 30000 // Extended to 30s for large catalog sync
     };
     
     if (method === 'POST') {
@@ -45,45 +45,42 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
   }
 };
 
-// --- TERMINAL ROUTES ---
+// --- SYSTEM ROUTES ---
 
+// Inlomax Balance
 app.get('/api/terminal/balance', async (req, res) => {
   const result = await callInlomax('/balance', {}, 'GET');
   res.status(result.status).json(result.success ? result.data : result.error);
 });
 
+// Inlomax Catalog Sync
 app.get('/api/terminal/services', async (req, res) => {
   const result = await callInlomax('/services', {}, 'GET');
   res.status(result.status).json(result.success ? result.data : result.error);
 });
 
-app.post('/api/terminal/airtime', async (req, res) => {
-  const result = await callInlomax('/airtime', req.body);
-  res.status(result.status).json(result.success ? result.data : result.error);
-});
-
-app.post('/api/terminal/data', async (req, res) => {
-  const result = await callInlomax('/data', req.body);
-  res.status(result.status).json(result.success ? result.data : result.error);
-});
-
-// Paystack Proxy - Fixed URL and Header
+// Paystack Bank Fetch
 app.get('/api/terminal/banks', async (req, res) => {
     try {
         const response = await axios.get('https://api.paystack.co/bank', {
-            headers: { 
-                'Authorization': `Bearer ${PAYSTACK_SECRET}`,
-                'Content-Type': 'application/json'
-            }
+            headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET}` }
         });
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
-        console.error("Paystack Bank Error:", error.response?.data || error.message);
-        res.status(500).json({ 
-            status: 'error', 
-            message: "Paystack connection failed", 
-            details: error.response?.data || error.message 
+        res.status(500).json({ status: 'error', message: "Paystack Bridge Error", details: error.response?.data || error.message });
+    }
+});
+
+// Paystack Account Resolve
+app.get('/api/terminal/resolve', async (req, res) => {
+    const { accountNumber, bankCode } = req.query;
+    try {
+        const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
+            headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET}` }
         });
+        res.json({ status: 'success', data: response.data.data });
+    } catch (error: any) {
+        res.status(500).json({ status: 'error', message: "Resolution Failed", details: error.response?.data || error.message });
     }
 });
 
