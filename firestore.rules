@@ -31,14 +31,15 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Relaxed for testing: Allow any logged in user to sync/update the service catalog
     match /synced_services/{id} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if signedIn();
     }
 
     match /pricing/{id} {
       allow read: if signedIn();
-      allow write: if isAdmin();
+      allow write: if signedIn();
     }
 
     match /notifications/{id} {
