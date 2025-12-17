@@ -1,103 +1,113 @@
 import { ApiConfig, ApiResponse } from '../types';
+import { auth } from './firebase';
+
+const getEnv = (key: string) => {
+  // @ts-ignore
+  return import.meta.env?.[key] || '';
+};
+
+// Point to our own Backend Proxy
+const BACKEND_URL = getEnv('VITE_BACKEND_URL') || '/api'; // Use relative path if proxied by Vite/Vercel
+
+// Helper to get Firebase Token
+const getAuthToken = async () => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("User not authenticated");
+    return user.getIdToken();
+};
 
 export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse> => {
   const startTime = performance.now();
   
-  // Construct headers object
-  const headers: Record<string, string> = {};
-  config.headers.forEach(h => {
-    if (h.key && h.value) {
-      headers[h.key] = h.value;
-    }
-  });
-
-  const isFormData = config.body instanceof FormData;
-
-  // Ensure Content-Type is set for JSON if not FormData and not GET
-  if ((config.method === 'POST' || config.method === 'PUT') && !headers['Content-Type'] && !isFormData) {
-    headers['Content-Type'] = 'application/json';
-  }
-
-  const options: RequestInit = {
-    method: config.method,
-    headers: headers,
-    mode: 'cors', 
-  };
-
-  if (config.method !== 'GET' && config.body) {
-    if (isFormData) {
-      // Browser automatically sets Content-Type with boundary for FormData
-      // We explicitly ensure we don't override it with application/json
-      if (headers['Content-Type'] === 'application/json') {
-        delete (options.headers as Record<string,string>)['Content-Type'];
-      }
-      options.body = config.body as FormData;
-    } else {
-      const bodyStr = config.body as string;
-      // Only validate JSON if we are claiming to send JSON
-      if (headers['Content-Type']?.includes('application/json')) {
-        try {
-          JSON.parse(bodyStr);
-        } catch (e) {
-          return {
-            success: false,
-            status: 0,
-            statusText: 'Validation Error',
-            data: { error: 'Invalid JSON in request body' },
-            headers: {},
-            duration: 0,
-          };
-        }
-      }
-      options.body = bodyStr;
-    }
-  }
-
   try {
-    // Handle CORS Proxy
-    const targetUrl = config.useProxy 
-      ? `https://corsproxy.io/?${encodeURIComponent(config.url)}` 
-      : config.url;
+      const token = await getAuthToken();
+      const headers: Record<string, string> = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+          ...(config.headers?.reduce((acc, h) => ({ ...acc, [h.key]: h.value }), {}) || {})
+      };
 
-    const res = await fetch(targetUrl, options);
-    const endTime = performance.now();
-    const duration = Math.round(endTime - startTime);
+      const res = await fetch(config.url, {
+          method: config.method,
+          headers: headers,
+          body: config.body
+      });
 
-    const responseHeaders: Record<string, string> = {};
-    res.headers.forEach((value, key) => {
-      responseHeaders[key] = value;
-    });
+      const endTime = performance.now();
+      const data = await res.json();
 
-    let data;
-    const contentType = res.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      data = await res.json();
-    } else {
-      data = await res.text();
-    }
-
-    return {
-      success: res.ok,
-      status: res.status,
-      statusText: res.statusText,
-      data: data,
-      headers: responseHeaders,
-      duration: duration,
-    };
-
+      return {
+          success: res.ok,
+          status: res.status,
+          statusText: res.statusText,
+          data: data,
+          duration: Math.round(endTime - startTime),
+      };
   } catch (error: any) {
-    const endTime = performance.now();
-    return {
-      success: false,
-      status: 0,
-      statusText: 'Network Error',
-      data: { 
-        error: error.message, 
-        suggestion: 'Failed to fetch. This is likely a CORS issue. Ensure "Use CORS Proxy" is ENABLED in the settings.' 
-      },
-      headers: {},
-      duration: Math.round(endTime - startTime),
-      error: error.message
-    };
+      return {
+          success: false,
+          status: 0,
+          statusText: 'Client Error',
+          data: { error: error.message },
+          duration: 0,
+          error: error.message
+      };
   }
+};
+
+// --- Real Service Functions (Via Backend) ---
+
+export const buyAirtime = async (network: string, amount: number, phone: string, requestId: string) => {
+  return executeApiRequest({
+    url: `${BACKEND_URL}/vtu/airtime`,
+    method: 'POST',
+    body: JSON.stringify({ network, amount, mobile_number: phone, request_id: requestId })
+  });
+};
+
+export const buyData = async (planId: string, phone: string, requestId: string) => {
+  return executeApiRequest({
+    url: `${BACKEND_URL}/vtu/data`,
+    method: 'POST',
+    body: JSON.stringify({ plan_id: planId, mobile_number: phone, request_id: requestId })
+  });
+};
+
+export const validateMeter = async (discoId: string, meterNumber: string, meterType: string) => {
+  return executeApiRequest({
+    url: `${BACKEND_URL}/vtu/verify/meter`,
+    method: 'POST',
+    body: JSON.stringify({ serviceID: discoId, meterNum: meterNumber, meterType })
+  });
+};
+
+export const validateCable = async (serviceId: string, iucNumber: string) => {
+  return executeApiRequest({
+    url: `${BACKEND_URL}/vtu/verify/cable`,
+    method: 'POST',
+    body: JSON.stringify({ serviceID: serviceId, iucNum: iucNumber })
+  });
+};
+
+export const syncAdminPlans = async () => {
+    return executeApiRequest({
+        url: `${BACKEND_URL}/admin/sync-plans`,
+        method: 'POST'
+    });
+};
+
+export const uploadImageToImgBB = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('image', file);
+  // Direct call to ImgBB (Client-side key is acceptable for ImgBB as it's public upload)
+  // Ideally this should also go through backend to hide key, but keeping simple for file upload
+  const key = '6335530a0b22ceea3ae8c5699049bd5e'; 
+  
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, {
+      method: 'POST',
+      body: formData
+  });
+  const data = await res.json();
+  if (data.success) return data.data.url;
+  throw new Error('Image upload failed');
 };

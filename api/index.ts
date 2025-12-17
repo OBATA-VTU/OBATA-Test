@@ -1,0 +1,170 @@
+import express from 'express';
+import cors from 'cors';
+import * as admin from 'firebase-admin';
+import axios from 'axios';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+const app = express();
+
+// Initialize Firebase Admin
+if (!admin.apps.length) {
+    admin.initializeApp({
+        credential: admin.credential.cert({
+            projectId: process.env.FIREBASE_PROJECT_ID,
+            clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+            privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        }),
+    });
+}
+
+const db = admin.firestore();
+
+// Configuration
+const INLOMAX_BASE_URL = process.env.INLOMAX_BASE_URL || 'https://inlomax.com/api';
+const INLOMAX_API_KEY = process.env.INLOMAX_API_KEY;
+
+app.use(cors({ origin: true })); // Allow requests from frontend
+app.use(express.json());
+
+// Middleware: Verify Firebase ID Token
+const verifyAuth = async (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+    try {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        req.user = decodedToken;
+        next();
+    } catch (error) {
+        return res.status(403).json({ error: 'Unauthorized: Invalid token' });
+    }
+};
+
+// Proxy Helper
+const callProvider = async (endpoint: string, payload: any) => {
+    try {
+        const response = await axios.post(`${INLOMAX_BASE_URL}${endpoint}`, payload, {
+            headers: {
+                'Authorization': `Token ${INLOMAX_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        return { success: true, data: response.data };
+    } catch (error: any) {
+        return { 
+            success: false, 
+            error: error.response?.data || error.message,
+            status: error.response?.status || 500
+        };
+    }
+};
+
+// --- Routes ---
+
+// VTU Proxy Endpoints
+app.post('/vtu/airtime', verifyAuth, async (req, res) => {
+    const result = await callProvider('/airtime', req.body);
+    if (!result.success) return res.status(result.status).json(result.error);
+    res.json(result.data);
+});
+
+app.post('/vtu/data', verifyAuth, async (req, res) => {
+    const result = await callProvider('/data', req.body);
+    if (!result.success) return res.status(result.status).json(result.error);
+    res.json(result.data);
+});
+
+app.post('/vtu/cable', verifyAuth, async (req, res) => {
+    const result = await callProvider('/subcable', req.body);
+    if (!result.success) return res.status(result.status).json(result.error);
+    res.json(result.data);
+});
+
+app.post('/vtu/electricity', verifyAuth, async (req, res) => {
+    const result = await callProvider('/payelectric', req.body);
+    if (!result.success) return res.status(result.status).json(result.error);
+    res.json(result.data);
+});
+
+app.post('/vtu/verify/meter', verifyAuth, async (req, res) => {
+    const result = await callProvider('/validatemeter', req.body);
+    if (!result.success) return res.status(result.status).json(result.error);
+    res.json(result.data);
+});
+
+app.post('/vtu/verify/cable', verifyAuth, async (req, res) => {
+    const result = await callProvider('/validatecable', req.body);
+    if (!result.success) return res.status(result.status).json(result.error);
+    res.json(result.data);
+});
+
+// Admin: Sync Plans (Fetch from provider and update Firestore)
+app.post('/admin/sync-plans', verifyAuth, async (req: any, res) => {
+    // Check if user is admin in Firestore
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    if (userDoc.data()?.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    try {
+        // Example: Fetch Data Plans from Provider
+        const response = await axios.get(`${INLOMAX_BASE_URL}/dataplans`); 
+        const plans = response.data.plans || []; // Adjust based on actual provider response structure
+
+        const batch = db.batch();
+        plans.forEach((plan: any) => {
+            const ref = db.collection('services').doc(`DATA-${plan.id}`);
+            batch.set(ref, {
+                category: 'DATA',
+                provider: plan.network,
+                name: plan.name,
+                price: parseFloat(plan.amount), // Add margin logic here if needed
+                resellerPrice: parseFloat(plan.amount),
+                apiId: plan.id,
+                validity: plan.validity,
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        });
+
+        await batch.commit();
+        res.json({ success: true, message: `Synced ${plans.length} plans` });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Admin: Stats (Secure Aggregation)
+app.get('/admin/stats', verifyAuth, async (req: any, res) => {
+    const userDoc = await db.collection('users').doc(req.user.uid).get();
+    if (userDoc.data()?.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    try {
+        const usersSnap = await db.collection('users').count().get();
+        const txnsSnap = await db.collection('transactions').count().get();
+        
+        // Calculate total wallet balance (Note: For large datasets, use Distributed Counters or BigQuery)
+        const users = await db.collection('users').get();
+        let totalWallet = 0;
+        users.forEach(doc => { totalWallet += (doc.data().walletBalance || 0); });
+
+        res.json({
+            users: usersSnap.data().count,
+            transactions: txnsSnap.data().count,
+            totalWalletBalance: totalWallet
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+export default app;

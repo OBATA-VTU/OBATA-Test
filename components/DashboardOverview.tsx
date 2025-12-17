@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Wallet, TrendingUp, Shield, Smartphone, Wifi, Zap, CreditCard, ChevronRight, Eye, EyeOff, PiggyBank, Award } from 'lucide-react';
-import { DashboardTab } from './Layout';
+import { DashboardTab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db } from '../services/firebase';

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { Smartphone, Zap, Wifi, Tv, CheckCircle, ArrowRight, Star, Users, HelpCircle, ChevronDown, CreditCard, ShieldCheck, PlayCircle, BarChart3, LogIn, Home } from 'lucide-react';
 import { Logo } from './Logo';
-import { PageView, DashboardTab } from './Layout';
+import { PageView, DashboardTab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LandingPageProps {

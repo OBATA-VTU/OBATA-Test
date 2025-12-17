@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auth, db, googleProvider } from '../services/firebase';
 import { signInWithPopup, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, getDocs, collection, query, where, serverTimestamp } from 'firebase/firestore';
-import { UserProfile } from '../types';
-import { Logo } from './Logo';
+import { Logo } from '../components/Logo';
 import { Mail, Lock, User, ArrowRight, Loader2, AlertCircle, Shield } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 

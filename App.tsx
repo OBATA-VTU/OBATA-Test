@@ -1,141 +1,71 @@
-import React, { useState, useEffect } from 'react';
+import React, { PropsWithChildren } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Layout, PageView, DashboardTab } from './components/Layout';
+import { ServiceProvider } from './contexts/ServiceContext';
+import { AppDataProvider } from './contexts/AppDataContext';
+import { Layout } from './components/Layout';
 import { LandingPage } from './components/LandingPage';
-import { AuthPage } from './components/AuthPage';
-import { DashboardOverview } from './components/DashboardOverview';
-import { ServicesPage } from './components/ServicesPage';
-import { WalletPage } from './components/WalletPage';
-import { SavingsPage } from './components/SavingsPage';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Pages
+import { AuthPage } from './pages/AuthPage'; 
+import { Dashboard } from './pages/Dashboard';
+import { ServicesPage } from './pages/ServicesPage';
+import { FundWallet } from './pages/FundWallet';
+import { P2PTransfer } from './pages/P2PTransfer';
+import { KoloPage } from './pages/KoloPage';
+import { ProfilePage } from './components/SecondaryPages'; 
 import { HistoryPage } from './components/HistoryPage';
-import { PricingPage } from './components/PricingPage';
 import { AdminPanel } from './components/AdminPanel';
-import { ReceiptModal } from './components/ReceiptModal';
-import { ApiConfig, ApiResponse } from './types';
-import { executeApiRequest } from './services/api';
-import { PrivacyPolicy, TermsOfService, AboutUs, ContactSupport } from './components/StaticPages';
-import { ResellerPage, ReferralsPage, RewardsPage, ApiDocsPage, ProfilePage } from './components/SecondaryPages';
+import { PaymentVerificationPage } from './pages/PaymentVerificationPage';
 
-const MainApp: React.FC = () => {
-  const { currentUser, userProfile, loading } = useAuth();
-  const [currentPage, setCurrentPage] = useState<PageView>('LANDING');
-  const [activeDashboardTab, setActiveDashboardTab] = useState<DashboardTab>('OVERVIEW');
-  
-  // Transaction State
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [lastResponse, setLastResponse] = useState<ApiResponse | null>(null);
-  const [showReceipt, setShowReceipt] = useState(false);
-
-  // Handle Initial Redirects
-  useEffect(() => {
-    if (!loading) {
-      if (currentUser && currentPage === 'LANDING') {
-        setCurrentPage('DASHBOARD');
-      }
-    }
-  }, [loading, currentUser]);
-
-  const handleApiSubmit = async (config: ApiConfig) => {
-    setIsProcessing(true);
-    try {
-      const response = await executeApiRequest(config);
-      setLastResponse(response);
-      setShowReceipt(true);
-      // If success, user might need to refresh balance in dashboard
-      // Ideally AuthContext listens to real-time updates so it's automatic
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const navigateTo = (page: PageView) => {
-    setCurrentPage(page);
-    window.scrollTo(0, 0);
-  };
-
-  const navigateDashboard = (tab: DashboardTab) => {
-    setCurrentPage('DASHBOARD');
-    setActiveDashboardTab(tab);
-    window.scrollTo(0, 0);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-slate-950 space-y-4">
-        <div className="w-16 h-16 rounded-full border-4 border-t-blue-500 border-r-amber-500 border-b-blue-500 border-l-amber-500 animate-spin"></div>
-        <p className="text-slate-400">Initializing OBATA VTU...</p>
-      </div>
-    );
-  }
-
-  // Render Full Page Views (No Sidebar)
-  if (currentPage === 'LANDING') {
-    return <LandingPage onGetStarted={() => currentUser ? setCurrentPage('DASHBOARD') : setCurrentPage('DASHBOARD')} onNavigate={navigateTo} onDashboardNavigate={navigateDashboard} />;
-  }
-
-  // Authentication is handled inside Layout if user is null for Dashboard, 
-  // But here we might want a dedicated Auth screen if not logged in
-  if (currentPage === 'DASHBOARD' && !currentUser) {
-    return <AuthPage onSuccess={() => setCurrentPage('DASHBOARD')} />;
-  }
-
-  // Helper for Dashboard Content
-  const renderDashboardContent = () => {
-    switch (activeDashboardTab) {
-      case 'OVERVIEW': return <DashboardOverview onNavigate={navigateDashboard} onTriggerUpgrade={() => setActiveDashboardTab('RESELLER')} />;
-      case 'SERVICES': return <ServicesPage onSubmit={handleApiSubmit} isLoading={isProcessing} />;
-      case 'WALLET': return <WalletPage onSubmit={handleApiSubmit} isLoading={isProcessing} />;
-      case 'SAVINGS': return <SavingsPage />;
-      case 'HISTORY': return <HistoryPage />;
-      case 'RESELLER': return <ResellerPage onTriggerUpgrade={() => setActiveDashboardTab('WALLET')} />;
-      case 'REWARDS': return <RewardsPage />;
-      case 'REFERRALS': return <ReferralsPage />;
-      case 'API': return <ApiDocsPage />;
-      case 'PROFILE': return <ProfilePage />;
-      case 'ADMIN': return userProfile?.isAdmin ? <AdminPanel /> : <div className="p-8 text-center text-red-500">Access Denied</div>;
-      default: return <DashboardOverview onNavigate={navigateDashboard} onTriggerUpgrade={() => setActiveDashboardTab('RESELLER')} />;
-    }
-  };
-
-  return (
-    <Layout 
-      onNavigate={navigateTo} 
-      isDashboard={currentPage === 'DASHBOARD'} 
-      activeTab={activeDashboardTab}
-      onDashboardNavigate={navigateDashboard}
-    >
-      <Toaster position="top-right" />
-      <ReceiptModal 
-        isOpen={showReceipt} 
-        onClose={() => setShowReceipt(false)} 
-        response={lastResponse}
-        loading={isProcessing}
-      />
-      
-      {currentPage === 'DASHBOARD' ? (
-        renderDashboardContent()
-      ) : (
-        // Public Static Pages inside Layout
-        <div className="py-12">
-           {currentPage === 'PRICING_PUBLIC' && <PricingPage />}
-           {currentPage === 'PRIVACY' && <PrivacyPolicy />}
-           {currentPage === 'TERMS' && <TermsOfService />}
-           {currentPage === 'ABOUT' && <AboutUs />}
-           {currentPage === 'SUPPORT' && <ContactSupport />}
-        </div>
-      )}
-    </Layout>
-  );
+const ProtectedRoute = ({ children }: PropsWithChildren) => {
+    const { currentUser, loading } = useAuth();
+    if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>;
+    return currentUser ? <>{children}</> : <Navigate to="/auth" />;
 };
 
-const App: React.FC = () => {
+const AdminRoute = ({ children }: PropsWithChildren) => {
+     const { currentUser, isReseller, loading } = useAuth(); 
+     if (loading) return null;
+     return currentUser ? <>{children}</> : <Navigate to="/dashboard" />;
+};
+
+const App = () => {
   return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <AppDataProvider>
+            <ServiceProvider>
+              <Toaster position="top-center" />
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<LandingPage onGetStarted={() => window.location.href='/auth'} onNavigate={() => {}} />} />
+                <Route path="/auth" element={<AuthPage onSuccess={() => window.location.href='/dashboard'} />} />
+                <Route path="/verify-payment" element={<PaymentVerificationPage />} />
+
+                {/* Protected Dashboard Routes */}
+                <Route element={<Layout />}>
+                    <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                    <Route path="services/:serviceType?" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
+                    <Route path="wallet" element={<ProtectedRoute><FundWallet /></ProtectedRoute>} />
+                    <Route path="transfer" element={<ProtectedRoute><P2PTransfer /></ProtectedRoute>} />
+                    <Route path="kolo" element={<ProtectedRoute><KoloPage /></ProtectedRoute>} />
+                    <Route path="profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+                    <Route path="history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
+                    <Route path="admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+                </Route>
+
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" />} />
+              </Routes>
+            </ServiceProvider>
+          </AppDataProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 };
 
