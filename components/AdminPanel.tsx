@@ -247,12 +247,12 @@ export const AdminPanel: React.FC = () => {
                     </div>
 
                     <div className="bg-black/50 p-4 rounded-xl font-mono text-xs text-green-400 h-48 overflow-y-auto border border-slate-800">
-                        <p>> Initializing Oracle v2.0...</p>
-                        <p>> Checking Firebase Connectivity... OK</p>
-                        <p>> Pinging Provider API... {oracleStatus.latency}ms</p>
-                        <p>> Checking User Authentication Nodes... OK</p>
-                        <p>> Verifying Transaction Integrity... OK</p>
-                        <p>> System Status: <span className="text-white bg-green-600 px-1">HEALTHY</span></p>
+                        <p>&gt; Initializing Oracle v2.0...</p>
+                        <p>&gt; Checking Firebase Connectivity... OK</p>
+                        <p>&gt; Pinging Provider API... {oracleStatus.latency}ms</p>
+                        <p>&gt; Checking User Authentication Nodes... OK</p>
+                        <p>&gt; Verifying Transaction Integrity... OK</p>
+                        <p>&gt; System Status: <span className="text-white bg-green-600 px-1">HEALTHY</span></p>
                     </div>
                 </div>
             )}
