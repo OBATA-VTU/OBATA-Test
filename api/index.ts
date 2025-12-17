@@ -22,7 +22,7 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // Configuration
-const INLOMAX_BASE_URL = 'https://inlomax.com/api'; // Hardcoded base URL for provider
+const INLOMAX_BASE_URL = 'https://inlomax.com/api'; 
 const INLOMAX_API_KEY = process.env.INLOMAX_API_KEY;
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
@@ -49,9 +49,7 @@ const verifyAuth = async (req: any, res: any, next: any) => {
 // Provider Call Helper
 const callProvider = async (endpoint: string, payload: any) => {
     try {
-        // Log for debugging
-        console.log(`Calling Provider: ${INLOMAX_BASE_URL}${endpoint}`);
-        
+        console.log(`PROXY REQ: ${INLOMAX_BASE_URL}${endpoint}`);
         const response = await axios.post(`${INLOMAX_BASE_URL}${endpoint}`, payload, {
             headers: {
                 'Authorization': `Token ${INLOMAX_API_KEY}`,
@@ -60,20 +58,14 @@ const callProvider = async (endpoint: string, payload: any) => {
         });
         return { success: true, data: response.data };
     } catch (error: any) {
-        console.error("Provider Error:", error.response?.data || error.message);
+        console.error("PROXY ERR:", error.response?.data || error.message);
         const status = error.response?.status || 500;
         const providerError = error.response?.data?.message || error.response?.data?.error || error.message;
-        
-        return { 
-            success: false, 
-            error: providerError,
-            status: status
-        };
+        return { success: false, error: providerError, status: status };
     }
 };
 
 // --- VTU Routes ---
-
 app.post('/vtu/airtime', verifyAuth, async (req, res) => {
     const result = await callProvider('/airtime', req.body);
     if (!result.success) return res.status(result.status).json({ error: result.error });
@@ -111,27 +103,37 @@ app.post('/vtu/verify/cable', verifyAuth, async (req, res) => {
 });
 
 // --- Banking Routes (Paystack) ---
-
 app.get('/misc/banks', verifyAuth, async (req, res) => {
     try {
+        console.log("FETCHING BANKS FROM PAYSTACK");
         const response = await axios.get('https://api.paystack.co/bank', {
             headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
         });
-        res.json({ success: true, data: response.data.data });
+        // Paystack returns { status: true, message: "...", data: [...] }
+        if (response.data && response.data.status) {
+            return res.json({ success: true, data: response.data.data });
+        }
+        throw new Error("Paystack returned failure status");
     } catch (error: any) {
-        res.status(500).json({ error: 'Failed to fetch banks' });
+        console.error("BANK FETCH ERROR:", error.message);
+        res.status(500).json({ success: false, error: 'Failed to fetch banks' });
     }
 });
 
 app.get('/misc/resolve-account', verifyAuth, async (req, res) => {
     const { account_number, bank_code } = req.query;
     try {
+        console.log(`RESOLVING: ${account_number} @ ${bank_code}`);
         const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${account_number}&bank_code=${bank_code}`, {
             headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
         });
-        res.json({ success: true, data: response.data.data });
+        if (response.data && response.data.status) {
+            return res.json({ success: true, data: response.data.data });
+        }
+        throw new Error(response.data?.message || "Resolution failed");
     } catch (error: any) {
-        res.status(400).json({ error: 'Could not resolve account' });
+        console.error("RESOLVE ERROR:", error.response?.data || error.message);
+        res.status(400).json({ success: false, error: error.response?.data?.message || 'Could not resolve account' });
     }
 });
 
@@ -141,7 +143,6 @@ app.get('/payment/verify/:reference', verifyAuth, async (req, res) => {
         const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
             headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
         });
-        
         if (response.data.status && response.data.data.status === 'success') {
              res.json({ success: true, data: response.data.data });
         } else {

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, Smartphone, Wifi, Tv, Zap, Plus, ArrowRight, Clock } from 'lucide-react';
+import { Wallet, Smartphone, Wifi, Tv, Zap, Plus, ArrowRight, Clock, Eye, EyeOff, TrendingUp, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -11,6 +11,7 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [greeting, setGreeting] = useState('');
   const [recentTxns, setRecentTxns] = useState<any[]>([]);
+  const [showBalance, setShowBalance] = useState(true);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -21,7 +22,7 @@ export const Dashboard: React.FC = () => {
     const fetchTxns = async () => {
         if (!currentUser) return;
         try {
-            const q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), orderBy('date', 'desc'), limit(3));
+            const q = query(collection(db, 'transactions'), where('userId', '==', currentUser.uid), orderBy('date', 'desc'), limit(5));
             const snap = await getDocs(q);
             setRecentTxns(snap.docs.map(d => ({id: d.id, ...d.data()})));
         } catch(e) { console.error(e); }
@@ -30,98 +31,158 @@ export const Dashboard: React.FC = () => {
   }, [currentUser]);
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pb-10">
       {/* Greeting & Promo */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 px-1">
         <div>
             <h1 className="text-2xl md:text-3xl font-bold text-white mb-1">
             {greeting}, <span className="text-blue-500 capitalize">{userProfile?.username || 'User'}</span>
             </h1>
             <PromoTypingBanner />
         </div>
-        <div className="text-slate-400 text-sm">
-            {new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        <div className="text-slate-500 text-xs font-medium uppercase tracking-wider flex items-center bg-slate-900/50 px-3 py-1.5 rounded-full border border-slate-800">
+            <Clock className="w-3 h-3 mr-2 text-blue-500" />
+            {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
         </div>
       </div>
 
-      {/* Wallet Card */}
-      <div className="relative bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-8 text-white shadow-xl overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-10">
-            <Wallet className="w-32 h-32" />
-        </div>
-        <div className="relative z-10">
-            <p className="text-blue-100 font-medium mb-2">Available Balance</p>
-            <h2 className="text-4xl md:text-5xl font-bold mb-6 font-mono">
-                ₦{(userProfile?.walletBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-            </h2>
-            <button 
+      {/* Modern Balance Card Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 relative overflow-hidden bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl group transition-all duration-500 hover:border-blue-500/30">
+          {/* Decorative Background Elements */}
+          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-600/10 rounded-full blur-[80px] transition-all duration-700 group-hover:bg-blue-600/20"></div>
+          <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 bg-indigo-600/10 rounded-full blur-[60px]"></div>
+          
+          <div className="relative z-10">
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-600/20 p-2.5 rounded-2xl border border-blue-500/20">
+                  <Wallet className="w-6 h-6 text-blue-400" />
+                </div>
+                <span className="text-slate-400 font-semibold tracking-wide text-sm">TOTAL BALANCE</span>
+              </div>
+              <button 
+                onClick={() => setShowBalance(!showBalance)}
+                className="bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white p-2.5 rounded-xl border border-slate-700 transition-all active:scale-95"
+              >
+                {showBalance ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
+            </div>
+
+            <div className="mb-10">
+              <div className="flex items-baseline space-x-1">
+                <span className="text-2xl md:text-3xl font-bold text-blue-500">₦</span>
+                <h2 className="text-5xl md:text-6xl font-black text-white tracking-tighter leading-none font-mono">
+                  {showBalance ? (userProfile?.walletBalance || 0).toLocaleString(undefined, { minimumFractionDigits: 2 }) : '•••••••'}
+                </h2>
+              </div>
+              <div className="mt-4 flex items-center text-emerald-400 text-sm font-bold bg-emerald-500/10 w-fit px-3 py-1 rounded-full border border-emerald-500/20">
+                <TrendingUp className="w-4 h-4 mr-1.5" />
+                <span>+2.4% this week</span>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-4">
+              <button 
                 onClick={() => navigate('/wallet')}
-                className="bg-white text-blue-600 px-6 py-3 rounded-xl font-bold shadow-lg hover:bg-blue-50 transition-colors flex items-center"
-            >
-                <Plus className="w-5 h-5 mr-2" /> Fund Wallet
-            </button>
+                className="flex-1 min-w-[140px] bg-blue-600 hover:bg-blue-500 text-white px-6 py-4 rounded-2xl font-bold shadow-xl shadow-blue-600/20 transition-all flex items-center justify-center group/btn active:scale-95"
+              >
+                <Plus className="w-5 h-5 mr-2 transition-transform group-hover/btn:rotate-90" /> 
+                Add Money
+              </button>
+              <button 
+                onClick={() => navigate('/transfer')}
+                className="flex-1 min-w-[140px] bg-slate-800 hover:bg-slate-750 text-white px-6 py-4 rounded-2xl font-bold border border-slate-700 transition-all flex items-center justify-center active:scale-95"
+              >
+                <ArrowUpRight className="w-5 h-5 mr-2" />
+                Transfer
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Secondary Stats Card */}
+        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 flex flex-col justify-between relative overflow-hidden hover:border-purple-500/30 transition-all duration-500">
+           <div className="absolute top-0 right-0 p-4 opacity-5">
+              <Zap className="w-32 h-32 text-amber-500" />
+           </div>
+           <div>
+              <p className="text-slate-400 font-bold text-sm mb-1">COMMISSION</p>
+              <h3 className="text-3xl font-black text-amber-500 font-mono">
+                ₦{showBalance ? (userProfile?.commissionBalance || 0).toLocaleString() : '••••'}
+              </h3>
+           </div>
+           <div className="mt-8 pt-8 border-t border-slate-800/50">
+              <p className="text-slate-400 font-bold text-sm mb-1">SAVINGS</p>
+              <h3 className="text-3xl font-black text-emerald-500 font-mono">
+                ₦{showBalance ? (userProfile?.savingsBalance || 0).toLocaleString() : '••••'}
+              </h3>
+              <button 
+                onClick={() => navigate('/kolo')}
+                className="mt-4 text-xs font-bold text-blue-400 flex items-center hover:text-blue-300 transition-colors"
+              >
+                Manage Savings <ArrowRight className="w-3 h-3 ml-1" />
+              </button>
+           </div>
         </div>
       </div>
 
       {/* Quick Links */}
       <div>
-        <h3 className="text-white font-bold mb-4">Quick Services</h3>
-        <div className="grid grid-cols-4 gap-4">
+        <div className="flex items-center justify-between mb-6 px-1">
+          <h3 className="text-lg font-bold text-white flex items-center">
+            <Zap className="w-5 h-5 mr-2 text-amber-400 fill-amber-400/20" />
+            Quick Services
+          </h3>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-                { label: 'Airtime', icon: Smartphone, color: 'bg-blue-500', path: '/services/airtime' },
-                { label: 'Data', icon: Wifi, color: 'bg-emerald-500', path: '/services/data' },
-                { label: 'Cable', icon: Tv, color: 'bg-purple-500', path: '/services/cable' },
-                { label: 'Bills', icon: Zap, color: 'bg-amber-500', path: '/services/electricity' },
+                { label: 'Airtime', icon: Smartphone, color: 'from-blue-500 to-indigo-600', path: '/services/airtime', desc: 'Instant Topup' },
+                { label: 'Data', icon: Wifi, color: 'from-emerald-500 to-teal-600', path: '/services/data', desc: 'Cheap SME' },
+                { label: 'Cable', icon: Tv, color: 'from-purple-500 to-fuchsia-600', path: '/services/cable', desc: 'TV Subs' },
+                { label: 'Bills', icon: Zap, color: 'from-amber-500 to-orange-600', path: '/services/electricity', desc: 'Power/Gas' },
             ].map(item => (
                 <button 
                     key={item.label}
                     onClick={() => navigate(item.path)}
-                    className="flex flex-col items-center justify-center p-4 bg-slate-900 border border-slate-800 rounded-2xl hover:border-slate-700 transition-all"
+                    className="group flex flex-col items-start p-6 bg-slate-900 border border-slate-800 rounded-3xl hover:border-slate-600 transition-all duration-300 hover:shadow-xl relative overflow-hidden"
                 >
-                    <div className={`w-12 h-12 rounded-full ${item.color} flex items-center justify-center mb-2 shadow-lg`}>
+                    <div className={`absolute top-0 right-0 w-24 h-24 bg-gradient-to-br ${item.color} opacity-0 group-hover:opacity-10 transition-opacity blur-2xl`}></div>
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${item.color} flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform`}>
                         <item.icon className="w-6 h-6 text-white" />
                     </div>
-                    <span className="text-xs md:text-sm font-medium text-slate-300">{item.label}</span>
+                    <span className="text-base font-bold text-white mb-1">{item.label}</span>
+                    <span className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">{item.desc}</span>
                 </button>
             ))}
         </div>
       </div>
 
       {/* Recent Transactions */}
-      <div>
-        <div className="flex justify-between items-center mb-4">
-            <h3 className="text-white font-bold">Recent Transactions</h3>
-            <button onClick={() => navigate('/history')} className="text-blue-400 text-sm hover:underline">View All</button>
+      <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-xl">
+        <div className="p-8 border-b border-slate-800 flex justify-between items-center">
+            <h3 className="text-xl font-bold text-white">Recent Activity</h3>
+            <button onClick={() => navigate('/history')} className="text-blue-400 text-sm font-bold hover:text-blue-300 flex items-center transition-colors">
+              View Records <ArrowRight className="w-4 h-4 ml-1.5" />
+            </button>
         </div>
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div className="divide-y divide-slate-800/50">
             {recentTxns.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">No recent transactions.</div>
+                <div className="p-16 text-center text-slate-500 flex flex-col items-center">
+                  <div className="bg-slate-800/50 p-4 rounded-full mb-4">
+                    <Clock className="w-8 h-8 text-slate-600" />
+                  </div>
+                  <p className="font-medium">No recent transactions found.</p>
+                  <p className="text-xs text-slate-600 mt-1">Start transacting to see history here.</p>
+                </div>
             ) : (
                 recentTxns.map((tx) => (
-                    <div key={tx.id} className="p-4 border-b border-slate-800 last:border-0 flex justify-between items-center">
+                    <div key={tx.id} className="p-6 hover:bg-slate-850 transition-all flex justify-between items-center cursor-pointer group">
                         <div className="flex items-center">
-                            <div className={`p-2 rounded-full mr-3 ${tx.type === 'CREDIT' || tx.type === 'FUNDING' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                                {tx.type === 'CREDIT' || tx.type === 'FUNDING' ? <Plus className="w-4 h-4" /> : <ArrowRight className="w-4 h-4 -rotate-45" />}
+                            <div className={`w-12 h-12 rounded-2xl mr-4 flex items-center justify-center transition-transform group-hover:scale-105 ${tx.type === 'CREDIT' || tx.type === 'FUNDING' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'}`}>
+                                {tx.type === 'CREDIT' || tx.type === 'FUNDING' ? <Plus className="w-5 h-5" /> : <ArrowUpRight className="w-5 h-5" />}
                             </div>
                             <div>
-                                <p className="text-white font-medium text-sm">{tx.description}</p>
-                                <p className="text-xs text-slate-500 flex items-center">
-                                    <Clock className="w-3 h-3 mr-1" />
-                                    {tx.date?.toDate ? tx.date.toDate().toLocaleDateString() : 'Just now'}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="text-right">
-                            <p className={`font-bold text-sm ${tx.type === 'CREDIT' || tx.type === 'FUNDING' ? 'text-green-500' : 'text-white'}`}>
-                                {tx.type === 'CREDIT' || tx.type === 'FUNDING' ? '+' : '-'}₦{tx.amount}
-                            </p>
-                            <p className="text-[10px] text-slate-500 uppercase">{tx.status}</p>
-                        </div>
-                    </div>
-                ))
-            )}
-        </div>
-      </div>
-    </div>
-  );
-};
+                                <p className="text-white font-bold text-sm group-hover:text-blue-400 transition-colors">{tx.description}</p>
+                                <p className="text-xs text-slate-500 font-medium flex items-center mt-1">
+                                    {tx.date?.toDate ? tx.date.toDate().toLocaleDateString

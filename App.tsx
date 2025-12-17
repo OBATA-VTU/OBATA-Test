@@ -18,8 +18,9 @@ import { KoloPage } from './pages/KoloPage';
 import { ProfilePage } from './components/SecondaryPages'; 
 import { HistoryPage } from './components/HistoryPage';
 import { AdminPanel } from './components/AdminPanel';
+import { ApiTester } from './components/ApiTester';
 import { PaymentVerificationPage } from './pages/PaymentVerificationPage';
-import { PricingPage } from './components/PricingPage'; // Added import
+import { PricingPage } from './components/PricingPage';
 
 const ProtectedRoute = ({ children }: PropsWithChildren) => {
     const { currentUser, loading } = useAuth();
@@ -28,12 +29,12 @@ const ProtectedRoute = ({ children }: PropsWithChildren) => {
 };
 
 const AdminRoute = ({ children }: PropsWithChildren) => {
-     const { currentUser, isReseller, loading } = useAuth(); 
+     const { currentUser, loading } = useAuth(); 
      if (loading) return null;
-     return currentUser ? <>{children}</> : <Navigate to="/dashboard" />;
+     // Gatekeeping via Firebase role removed as per prompt. Password lock handles security inside components.
+     return currentUser ? <>{children}</> : <Navigate to="/auth" />;
 };
 
-// Wrapper for Landing Page to pass navigate
 const LandingWrapper = () => {
     const navigate = useNavigate();
     return (
@@ -46,7 +47,6 @@ const LandingWrapper = () => {
     );
 };
 
-// Wrapper for Auth Page to pass navigation
 const AuthWrapper = () => {
     const navigate = useNavigate();
     return <AuthPage onSuccess={() => navigate('/dashboard')} />;
@@ -77,6 +77,7 @@ const App = () => {
                     <Route path="profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                     <Route path="history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
                     <Route path="admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
+                    <Route path="admin/tester" element={<AdminRoute><ApiTester /></AdminRoute>} />
                 </Route>
 
                 {/* Fallback */}

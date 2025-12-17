@@ -9,9 +9,9 @@ interface AuthContextType {
   userProfile: UserProfile | null;
   loading: boolean;
   logout: () => Promise<void>;
-  isAdmin: boolean;
+  isAdmin: boolean; // Must match rules: data.isAdmin == true
   isReseller: boolean;
-  refreshProfile: () => Promise<void>; // Added for manual refresh if needed, though listener handles it
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -29,7 +29,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     if (!isFirebaseInitialized) {
-        console.warn("AuthContext running in Mock Mode");
         setLoading(false);
         return;
     }
@@ -38,13 +37,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setCurrentUser(user);
       
       if (user) {
-        // Set up real-time listener
         const userRef = doc(db, 'users', user.uid);
         const unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data() as UserProfile);
           } else {
-            console.error("User profile document missing for UID:", user.uid);
             setUserProfile(null);
           }
           setLoading(false);
@@ -71,10 +68,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Helper for manual refresh if strictly necessary (e.g. after a cloud function update that might not reflect immediately in local cache)
   const refreshProfile = async () => {
-      // Listener handles updates automatically, this is mostly a no-op placeholder or for forcing a re-fetch if we were not using listeners
-      // For onSnapshot, we don't strictly need this, but we keep it for interface compatibility
       return Promise.resolve();
   };
 
@@ -84,8 +78,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userProfile, 
         loading, 
         logout,
-        isAdmin: userProfile?.role === 'admin',
-        isReseller: userProfile?.role === 'reseller' || userProfile?.role === 'admin',
+        // Match security rule check: data.isAdmin == true
+        isAdmin: userProfile?.isAdmin === true,
+        isReseller: userProfile?.role === 'reseller' || userProfile?.isAdmin === true,
         refreshProfile
     }}>
       {children}

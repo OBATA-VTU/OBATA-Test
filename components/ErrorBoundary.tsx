@@ -1,3 +1,5 @@
+
+
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
 
@@ -10,24 +12,37 @@ interface ErrorBoundaryState {
   error: Error | null;
 }
 
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+/**
+ * ErrorBoundary catches rendering errors in the component tree and displays a fallback UI.
+ */
+// Heed to my warning bro think extensively before you do anything and ensure you gimme the best.
+// Using React.Component explicitly to resolve property access issues with state and props in this environment.
+export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  // Explicitly declaring state property to resolve "Property 'state' does not exist" errors
+  public state: ErrorBoundaryState = {
+    hasError: false,
+    error: null,
+  };
+
+  // Explicitly declaring props property to resolve "Property 'props' does not exist" errors
+  public props: ErrorBoundaryProps;
+
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = {
-      hasError: false,
-      error: null,
-    };
   }
 
+  // Update state so the next render will show the fallback UI
   public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     return { hasError: true, error };
   }
 
+  // Lifecycle method to log error details
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error:', error, errorInfo);
   }
 
-  public render() {
+  public render(): ReactNode {
+    // Access hasError from state
     if (this.state.hasError) {
       return (
         <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
@@ -70,6 +85,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       );
     }
 
+    // Return children from props when no error occurred
     return this.props.children;
   }
 }

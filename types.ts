@@ -1,3 +1,4 @@
+
 import { Timestamp } from 'firebase/firestore';
 
 export type UserRole = 'user' | 'reseller' | 'admin';
@@ -7,6 +8,7 @@ export interface UserProfile {
   email: string | null;
   username: string;
   role: UserRole;
+  isAdmin: boolean; // Matches firestore rule check: .data.isAdmin == true
   walletBalance: number;
   commissionBalance: number;
   savingsBalance: number;
@@ -20,7 +22,7 @@ export interface UserProfile {
   loginStreak?: number;
   emailNotifications: boolean;
   banned: boolean;
-  isReseller?: boolean; // Added for compatibility
+  isReseller?: boolean;
   hasFunded?: boolean;
   hasMadePurchase?: boolean;
   totalPurchaseValue?: number;
@@ -52,48 +54,12 @@ export interface Transaction {
 export interface ServicePlan {
   id: string;
   category: 'DATA' | 'CABLE' | 'EDUCATION';
-  provider: string; // MTN, DSTV, WAEC
+  provider: string;
   name: string;
   price: number;
   resellerPrice: number;
   apiId: string;
   validity?: string;
-}
-
-export interface SavingsPlan {
-  id: string;
-  userId: string;
-  title: string;
-  targetAmount: number;
-  savedAmount: number;
-  interestRate: number; // Annual percentage
-  dailyInterest: number;
-  startDate: Timestamp;
-  maturityDate: Timestamp;
-  isLocked: boolean;
-  status: 'ACTIVE' | 'COMPLETED' | 'BROKEN';
-}
-
-export interface Notification {
-  id: string;
-  title: string;
-  message: string;
-  type: 'INFO' | 'WARNING' | 'SUCCESS' | 'ERROR';
-  read: boolean;
-  date: Timestamp;
-}
-
-export interface KeyValuePair {
-  key: string;
-  value: string;
-}
-
-export interface ApiConfig {
-  url: string;
-  method: string;
-  headers?: KeyValuePair[];
-  body?: any;
-  useProxy?: boolean;
 }
 
 export interface ApiResponse<T = any> {
@@ -107,5 +73,23 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
+export interface ApiConfig {
+  url: string;
+  method: string;
+  headers?: {key: string, value: string}[];
+  body?: any;
+}
+
 export type PageView = 'LANDING' | 'PRICING_PUBLIC' | 'SUPPORT';
 export type DashboardTab = 'OVERVIEW' | 'WALLET' | 'SAVINGS' | 'REWARDS' | 'HISTORY' | 'RESELLER' | 'SERVICES' | 'PROFILE';
+
+// Added missing Notification interface to fix AppDataContext error
+export interface Notification {
+  id: string;
+  type: 'INFO' | 'WARNING' | 'SUCCESS';
+  title: string;
+  message: string;
+  date: Timestamp;
+  read: boolean;
+  target: 'ALL' | string;
+}
