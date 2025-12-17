@@ -1,17 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ApiConfig } from '../types';
-import { CreditCard, ShieldCheck, Mail, Zap, Loader2 } from 'lucide-react';
+import { ShieldCheck, Lock, Zap, Loader2 } from 'lucide-react';
 
 interface PaystackFormProps {
   onSubmit: (config: ApiConfig) => void;
   isLoading: boolean;
-  forcedAmount?: string;
+  forcedAmount?: string; // This is the total amount to be charged (Principal + Fee)
   forcedAction?: 'INITIALIZE';
-  onSuccess?: () => void;
+  onSuccess?: (reference: string) => void;
   title?: string;
+  userEmail?: string;
 }
 
-// Helper to safely get environment variables
 const getEnv = (key: string) => {
   try {
     // @ts-ignore
@@ -21,12 +21,9 @@ const getEnv = (key: string) => {
   }
 };
 
-// SECURE: We only use the Public Key on the frontend.
 const PAYSTACK_PUBLIC_KEY = getEnv('VITE_PAYSTACK_PUBLIC_KEY') || '';
 
-export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading, forcedAmount, forcedAction, title, onSuccess }) => {
-  const [email, setEmail] = useState('');
-  const [amount, setAmount] = useState(forcedAmount || '');
+export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading, forcedAmount, title, onSuccess, userEmail }) => {
   const [processing, setProcessing] = useState(false);
 
   // Load Paystack script dynamically
@@ -47,18 +44,22 @@ export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading,
   const handlePay = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!PAYSTACK_PUBLIC_KEY) {
-        alert("Paystack Public Key missing! Check your Vercel Environment Variables.");
+        alert("System Error: Payment Gateway Key missing.");
         return;
     }
 
     setProcessing(true);
     const paystack = await loadPaystack();
     
+    // Amount must be in Kobo (Naira * 100)
+    // forcedAmount is a string, parse it, multiply by 100
+    const amountInKobo = Math.round(parseFloat(forcedAmount || '0') * 100);
+
     // @ts-ignore
     const handler = (paystack as any).setup({
       key: PAYSTACK_PUBLIC_KEY,
-      email: email,
-      amount: parseFloat(amount) * 100, // Convert to Kobo
+      email: userEmail || 'customer@obatavtu.com',
+      amount: amountInKobo,
       currency: 'NGN',
       metadata: {
          custom_fields: [
@@ -67,19 +68,15 @@ export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading,
       },
       callback: function(response: any) {
         setProcessing(false);
-        // Transaction was successful!
-        // In a Production App: You would send response.reference to your backend server here to verify with Secret Key.
-        // For this Frontend App: We trust the popup response for the UI update.
-        
         if (onSuccess) {
-            onSuccess();
+            onSuccess(response.reference);
         } else {
             alert(`Payment Successful! Ref: ${response.reference}`);
         }
       },
       onClose: function() {
         setProcessing(false);
-        // User closed the popup
+        alert("Transaction Cancelled");
       }
     });
 
@@ -88,54 +85,14 @@ export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading,
 
   return (
     <div className="space-y-6">
-      {/* Title / Context */}
-      {title && (
-          <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-lg flex items-center space-x-3">
-              <Zap className="w-5 h-5 text-amber-500" />
-              <div>
-                  <h4 className="text-white font-bold text-sm">{title}</h4>
-                  <p className="text-xs text-slate-400">Complete this payment to proceed.</p>
-              </div>
-          </div>
-      )}
-
       <form onSubmit={handlePay} className="space-y-5">
-            <div className="space-y-4 animate-fadeIn">
-              <div className="space-y-1">
-                <label className="text-xs text-slate-400">Customer Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 w-4 h-4 text-slate-500" />
-                  <input 
-                    type="email" 
-                    value={email} 
-                    onChange={e => setEmail(e.target.value)} 
-                    placeholder="customer@example.com" 
-                    required
-                    className="w-full bg-slate-900 border border-slate-600 rounded-md pl-10 pr-3 py-2.5 text-sm text-white focus:border-blue-500" 
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <label className="text-xs text-slate-400">Amount (NGN)</label>
-                <input 
-                  type="number" 
-                  value={amount} 
-                  onChange={e => setAmount(e.target.value)} 
-                  placeholder="5000" 
-                  disabled={!!forcedAmount}
-                  required
-                  className={`w-full bg-slate-900 border border-slate-600 rounded-md p-2.5 text-sm text-white focus:border-blue-500 ${forcedAmount ? 'opacity-50 cursor-not-allowed' : ''}`}
-                />
-              </div>
-            </div>
-
         <button
           type="submit"
           disabled={processing || isLoading}
-          className={`w-full flex items-center justify-center space-x-2 py-3.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-bold text-white uppercase tracking-wider transition-all duration-200 ${
+          className={`w-full flex items-center justify-center space-x-3 py-4 px-6 border border-transparent rounded-xl shadow-lg text-sm font-bold text-white uppercase tracking-wider transition-all duration-200 ${
             processing || isLoading
               ? 'bg-slate-700 cursor-not-allowed opacity-50'
-              : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-blue-500/20 active:scale-[0.98]'
+              : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 hover:scale-[1.02] hover:shadow-emerald-500/25'
           }`}
         >
           {processing || isLoading ? (
@@ -145,11 +102,16 @@ export const PaystackForm: React.FC<PaystackFormProps> = ({ onSubmit, isLoading,
             </>
           ) : (
             <>
-              <CreditCard className="w-5 h-5" />
-              <span>Pay securely with Paystack</span>
+              <ShieldCheck className="w-5 h-5" />
+              <span>Fund Wallet Securely</span>
             </>
           )}
         </button>
+        
+        <div className="flex justify-center items-center text-xs text-slate-500 space-x-2">
+            <Lock className="w-3 h-3" />
+            <span>Secured by Paystack</span>
+        </div>
       </form>
     </div>
   );

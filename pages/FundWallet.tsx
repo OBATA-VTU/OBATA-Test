@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, Wallet, Copy, UploadCloud, Loader2, CheckCircle } from 'lucide-react';
+import { CreditCard, Wallet, Copy, UploadCloud, Loader2, CheckCircle, ArrowRight, Zap, Building2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PaystackForm } from '../components/PaystackForm';
 import { uploadImageToImgBB } from '../services/api';
@@ -7,30 +7,47 @@ import { collection, addDoc, serverTimestamp, doc, updateDoc, increment } from '
 import { db } from '../services/firebase';
 
 export const FundWallet: React.FC = () => {
-  const { currentUser, refreshProfile } = useAuth();
+  const { currentUser, refreshProfile, userProfile } = useAuth();
   const [activeTab, setActiveTab] = useState<'AUTO' | 'MANUAL'>('AUTO');
+  
+  // States
   const [amount, setAmount] = useState('');
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handlePaystackSuccess = async () => {
-      // Logic for verifying paystack typically happens on backend
-      // Here we optimistically credit for the prompt requirement
+  // Calculation Logic for Auto Funding
+  const fundingAmount = parseFloat(amount) || 0;
+  // Charge is 2% (2 Naira per 100 Naira)
+  const charge = Math.ceil(fundingAmount * 0.02); 
+  const totalToPay = fundingAmount + charge;
+
+  const handlePaystackSuccess = async (reference: string) => {
       if (!currentUser) return;
       try {
-          await updateDoc(doc(db, 'users', currentUser.uid), { walletBalance: increment(Number(amount)), hasFunded: true });
+          // Backend verification should happen here usually.
+          // We credit the PRINCIPAL amount (user gets what they asked for, they paid extra for charge).
+          await updateDoc(doc(db, 'users', currentUser.uid), { walletBalance: increment(fundingAmount), hasFunded: true });
+          
           await addDoc(collection(db, 'transactions'), {
               userId: currentUser.uid,
               type: 'FUNDING',
-              amount: Number(amount),
+              amount: fundingAmount, // Credit amount
+              charge: charge, // Fee paid
+              totalPaid: totalToPay,
               status: 'SUCCESS',
               method: 'PAYSTACK',
+              reference: reference,
+              description: 'Wallet Funding via Paystack',
               date: serverTimestamp()
           });
+          
           await refreshProfile();
           setAmount('');
-          alert("Wallet Funded Successfully!");
-      } catch (e) { console.error(e); }
+          alert(`Success! ₦${fundingAmount} has been added to your wallet.`);
+      } catch (e) { 
+          console.error(e);
+          alert("Error crediting wallet. Please contact support with Ref: " + reference);
+      }
   };
 
   const handleManualSubmit = async (e: React.FormEvent) => {
@@ -42,14 +59,16 @@ export const FundWallet: React.FC = () => {
           const proofUrl = await uploadImageToImgBB(manualFile);
           await addDoc(collection(db, 'transactions'), {
               userId: currentUser.uid,
+              userEmail: userProfile?.email,
               type: 'FUNDING',
-              amount: Number(amount),
+              amount: fundingAmount,
               status: 'PENDING',
               method: 'MANUAL',
               proofUrl,
+              description: 'Manual Bank Transfer Funding',
               date: serverTimestamp()
           });
-          alert("Request Submitted! Admin will review.");
+          alert("Proof submitted successfully! Admin will verify and credit your wallet shortly.");
           setAmount('');
           setManualFile(null);
       } catch (e: any) {
@@ -60,85 +79,163 @@ export const FundWallet: React.FC = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
-        <h1 className="text-3xl font-bold text-white mb-6">Fund Wallet</h1>
+    <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up pb-12">
+        <div className="text-center mb-10">
+            <h1 className="text-4xl font-bold text-white mb-2">Fund Your Wallet</h1>
+            <p className="text-slate-400">Choose a method to add funds instantly.</p>
+        </div>
 
-        <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-800">
+        {/* Method Selector */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button 
                 onClick={() => setActiveTab('AUTO')}
-                className={`flex-1 py-3 rounded-lg font-bold text-sm ${activeTab === 'AUTO' ? 'bg-slate-800 text-white shadow' : 'text-slate-400'}`}
+                className={`p-6 rounded-2xl border transition-all duration-300 text-left relative overflow-hidden group ${activeTab === 'AUTO' ? 'bg-blue-600/10 border-blue-500' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
             >
-                Automatic (Paystack)
+                <div className={`absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                <div className="flex justify-between items-start mb-4">
+                    <div className={`p-3 rounded-xl ${activeTab === 'AUTO' ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                        <Zap className="w-6 h-6" />
+                    </div>
+                    {activeTab === 'AUTO' && <CheckCircle className="w-6 h-6 text-blue-500" />}
+                </div>
+                <h3 className={`text-xl font-bold mb-1 ${activeTab === 'AUTO' ? 'text-white' : 'text-slate-300'}`}>Instant Funding</h3>
+                <p className="text-xs text-slate-500">Cards, USSD, Bank Transfer via Paystack. Automated credit.</p>
             </button>
+
             <button 
                 onClick={() => setActiveTab('MANUAL')}
-                className={`flex-1 py-3 rounded-lg font-bold text-sm ${activeTab === 'MANUAL' ? 'bg-slate-800 text-white shadow' : 'text-slate-400'}`}
+                className={`p-6 rounded-2xl border transition-all duration-300 text-left relative overflow-hidden group ${activeTab === 'MANUAL' ? 'bg-emerald-600/10 border-emerald-500' : 'bg-slate-900 border-slate-800 hover:border-slate-700'}`}
             >
-                Manual Transfer
+                <div className={`absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity`}></div>
+                <div className="flex justify-between items-start mb-4">
+                    <div className={`p-3 rounded-xl ${activeTab === 'MANUAL' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
+                        <Building2 className="w-6 h-6" />
+                    </div>
+                    {activeTab === 'MANUAL' && <CheckCircle className="w-6 h-6 text-emerald-500" />}
+                </div>
+                <h3 className={`text-xl font-bold mb-1 ${activeTab === 'MANUAL' ? 'text-white' : 'text-slate-300'}`}>Manual Transfer</h3>
+                <p className="text-xs text-slate-500">Direct transfer to our account. 0% fees. Admin verification required.</p>
             </button>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-xl">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden">
             {activeTab === 'AUTO' ? (
-                <div className="space-y-6">
-                    <div>
-                        <label className="text-slate-400 text-sm font-bold block mb-2">Amount (₦)</label>
-                        <input 
-                            type="number" 
-                            value={amount} 
-                            onChange={e => setAmount(e.target.value)}
-                            className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-xl font-bold"
-                            placeholder="1000"
-                        />
-                    </div>
-                    {Number(amount) > 0 && (
-                        <PaystackForm 
-                            onSubmit={() => {}}
-                            isLoading={loading}
-                            forcedAmount={amount}
-                            forcedAction="INITIALIZE"
-                            onSuccess={handlePaystackSuccess}
-                            title="Fund with Card"
-                        />
-                    )}
-                </div>
-            ) : (
-                <div className="space-y-6">
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 relative group">
-                         <p className="text-xs text-slate-500 font-bold uppercase mb-2">Bank Details</p>
-                         <h3 className="text-xl font-bold text-white">OPAY Digital Services</h3>
-                         <div className="flex items-center space-x-3 my-2">
-                             <span className="text-3xl font-mono font-bold text-blue-400">8142452729</span>
-                             <button onClick={() => navigator.clipboard.writeText('8142452729')} className="text-slate-500 hover:text-white"><Copy className="w-5 h-5" /></button>
-                         </div>
-                         <p className="text-white font-medium">OBATA GLOBAL SERVICES</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="space-y-6">
+                        <h3 className="text-2xl font-bold text-white">How much to fund?</h3>
+                        <div>
+                            <label className="text-slate-400 text-xs font-bold uppercase tracking-wider block mb-2">Amount to Credit (₦)</label>
+                            <div className="relative">
+                                <span className="absolute left-4 top-4 text-slate-500 font-bold">₦</span>
+                                <input 
+                                    type="number" 
+                                    value={amount} 
+                                    onChange={e => setAmount(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-4 text-white text-2xl font-bold focus:border-blue-500 transition-colors"
+                                    placeholder="1000"
+                                />
+                            </div>
+                        </div>
+
+                        {fundingAmount > 0 && (
+                            <div className="bg-slate-950 rounded-xl p-5 border border-slate-800 space-y-3">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-400">Amount to Wallet</span>
+                                    <span className="text-white font-bold">₦{fundingAmount.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-400">Transaction Fee (2%)</span>
+                                    <span className="text-amber-500 font-bold">+ ₦{charge.toLocaleString()}</span>
+                                </div>
+                                <div className="border-t border-slate-800 pt-3 mt-2 flex justify-between items-center">
+                                    <span className="text-slate-300 font-bold">Total Payable</span>
+                                    <span className="text-2xl font-bold text-emerald-400">₦{totalToPay.toLocaleString()}</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    <form onSubmit={handleManualSubmit} className="space-y-4">
+                    <div className="flex flex-col justify-center border-t md:border-t-0 md:border-l border-slate-800 md:pl-12 pt-8 md:pt-0">
+                        {fundingAmount >= 100 ? (
+                            <PaystackForm 
+                                onSubmit={() => {}}
+                                isLoading={loading}
+                                forcedAmount={totalToPay.toString()} // Pass Total
+                                forcedAction="INITIALIZE"
+                                onSuccess={handlePaystackSuccess}
+                                title="Fund Wallet"
+                                userEmail={userProfile?.email || undefined}
+                            />
+                        ) : (
+                            <div className="text-center text-slate-500">
+                                <AlertCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                                <p>Enter an amount of at least ₦100 to proceed.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+                    <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-2xl p-8 text-white relative overflow-hidden shadow-lg border border-white/10">
+                         <div className="relative z-10">
+                             <p className="text-xs text-purple-200 font-bold uppercase mb-4 tracking-widest">Official Bank Account</p>
+                             <div className="mb-6">
+                                <p className="text-sm opacity-80 mb-1">Bank Name</p>
+                                <h3 className="text-2xl font-bold">PALMPAY</h3>
+                             </div>
+                             <div className="mb-6">
+                                <p className="text-sm opacity-80 mb-1">Account Number</p>
+                                <div className="flex items-center space-x-3">
+                                    <span className="text-4xl font-mono font-bold tracking-wider">8142452729</span>
+                                    <button onClick={() => navigator.clipboard.writeText('8142452729')} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg transition-colors"><Copy className="w-5 h-5" /></button>
+                                </div>
+                             </div>
+                             <div>
+                                <p className="text-sm opacity-80 mb-1">Account Name</p>
+                                <p className="font-bold text-lg uppercase">BOLUWATIFE OLUWAPELUMI AYUBA</p>
+                             </div>
+                         </div>
+                         <div className="absolute -bottom-10 -right-10 opacity-10">
+                             <Building2 className="w-64 h-64" />
+                         </div>
+                    </div>
+
+                    <form onSubmit={handleManualSubmit} className="space-y-6">
+                        <h3 className="text-xl font-bold text-white">Upload Proof</h3>
                         <div>
-                            <label className="text-slate-400 text-sm font-bold block mb-2">Amount Sent</label>
+                            <label className="text-slate-400 text-xs font-bold uppercase block mb-2">Amount Sent</label>
                             <input 
                                 type="number" 
                                 value={amount} 
                                 onChange={e => setAmount(e.target.value)}
-                                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white"
+                                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white font-bold"
+                                placeholder="0.00"
                                 required
                             />
                         </div>
                         <div>
-                            <label className="text-slate-400 text-sm font-bold block mb-2">Proof of Payment</label>
-                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors">
+                            <label className="text-slate-400 text-xs font-bold uppercase block mb-2">Payment Receipt</label>
+                            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-slate-700 rounded-xl cursor-pointer hover:bg-slate-800 transition-colors bg-slate-950/50">
                                 <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                    {manualFile ? <CheckCircle className="w-8 h-8 text-green-500" /> : <UploadCloud className="w-8 h-8 text-slate-400" />}
-                                    <p className="text-sm text-slate-400 mt-2">{manualFile ? manualFile.name : 'Click to Upload Screenshot'}</p>
+                                    {manualFile ? (
+                                        <>
+                                            <CheckCircle className="w-10 h-10 text-emerald-500 mb-2" />
+                                            <p className="text-sm text-emerald-400 font-bold">{manualFile.name}</p>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <UploadCloud className="w-10 h-10 text-slate-500 mb-2" />
+                                            <p className="text-sm text-slate-400">Click to upload screenshot</p>
+                                        </>
+                                    )}
                                 </div>
                                 <input type="file" className="hidden" accept="image/*" onChange={e => e.target.files && setManualFile(e.target.files[0])} />
                             </label>
                         </div>
                         <button 
                             type="submit" 
-                            disabled={loading}
-                            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl"
+                            disabled={loading || !manualFile || !amount}
+                            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-emerald-900/20 transition-all active:scale-[0.98]"
                         >
                             {loading ? <Loader2 className="animate-spin mx-auto" /> : 'Submit for Verification'}
                         </button>

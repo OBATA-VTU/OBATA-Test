@@ -7,7 +7,6 @@ interface ConnectionFormProps {
   onSubmit: (config: ApiConfig) => void;
   isLoading: boolean;
   initialService?: string;
-  // Dynamic Props for Data
   dataPlans?: any[];
   cablePlans?: any[];
   electricityProviders?: any[];
@@ -15,7 +14,6 @@ interface ConnectionFormProps {
 
 type ServiceType = 'AIRTIME' | 'DATA' | 'CABLE' | 'ELECTRICITY' | 'EDUCATION' | 'BALANCE' | 'TRANSACTION';
 
-// Helper to safely get environment variables
 const getEnv = (key: string) => {
   try {
     // @ts-ignore
@@ -27,7 +25,8 @@ const getEnv = (key: string) => {
 
 const BASE_URL = getEnv('VITE_INLOMAX_BASE_URL') || 'https://inlomax.com/api';
 const API_KEY = getEnv('VITE_INLOMAX_API_KEY') || '';
-const USE_PROXY = true;
+// Check keys
+if (!API_KEY) console.warn("Missing VITE_INLOMAX_API_KEY. API calls will fail.");
 
 const NETWORKS = [
   { id: '1', name: 'MTN', color: 'bg-yellow-400' },
@@ -74,7 +73,6 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
     setValidationError(null);
   }, [iucNumber, meterNumber, meterType, discoId, service]);
 
-  // Filter plans based on selected network
   const filteredDataPlans = dataPlans.filter(p => {
       if(networkId === '1') return p.provider === 'MTN';
       if(networkId === '2') return p.provider === 'AIRTEL';
@@ -102,6 +100,8 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
   };
 
   const handleVerify = async () => {
+    if (!API_KEY) return setValidationError("System Error: API Key Config Missing");
+    
     setIsValidating(true);
     setValidatedName(null);
     setValidationError(null);
@@ -128,7 +128,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
         method: 'POST',
         headers: verificationHeaders,
         body,
-        useProxy: USE_PROXY
+        useProxy: true // Always force proxy/CORS handling if available
       });
       
       let responseData = res.data;
@@ -151,6 +151,11 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!API_KEY) {
+        alert("Configuration Error: API Key missing");
+        return;
+    }
+
     let endpoint = '';
     let bodyObj: any = {};
     let method: 'POST' | 'GET' = 'POST';
@@ -206,7 +211,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
       method: method,
       headers: getHeaders(headerType),
       body: bodyObj ? JSON.stringify(bodyObj, null, 2) : undefined,
-      useProxy: USE_PROXY
+      useProxy: true
     });
   };
 
@@ -220,7 +225,6 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
     return false;
   };
 
-  // Network Selection Component
   const NetworkSelector = ({ selected, onSelect }: { selected: string, onSelect: (id: string) => void }) => (
       <div className="grid grid-cols-4 gap-3 mb-6">
           {NETWORKS.map(n => (
