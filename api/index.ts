@@ -16,18 +16,16 @@ const INLOMAX_API_KEY = 'se2h4rl9cqhabg07tft55ivg4sp9b0a5jca1u3qe';
 /**
  * PAYSTACK SECRET KEY RESOLUTION
  * Bank resolution and listing MUST use the Secret Key (sk_...).
- * We look for PAYSTACK_SECRET_KEY first as it is the standard for server-side.
  */
 const PAYSTACK_SECRET = 
     process.env.PAYSTACK_SECRET_KEY || 
     process.env.VITE_PAYSTACK_SECRET_KEY || 
-    process.env.PAYSTACK_PUBLIC_KEY || // Fallback (will likely fail at Paystack)
+    process.env.PAYSTACK_PUBLIC_KEY || 
     process.env.VITE_PAYSTACK_PUBLIC_KEY || 
     '';
 
 const callInlomax = async (endpoint: string, payload: any, method: string = 'POST') => {
   const url = `${INLOMAX_BASE_URL}${endpoint}`;
-  console.log(`[Proxy] Handshake Started: ${method} ${url}`);
   
   try {
     const config: AxiosRequestConfig = {
@@ -47,11 +45,10 @@ const callInlomax = async (endpoint: string, payload: any, method: string = 'POS
     }
 
     const response = await axios(config);
-    console.log(`[Proxy] Provider Success: ${response.status}`);
     return { success: true, data: response.data, status: response.status };
   } catch (error: any) {
     const errorData = error.response?.data || { message: error.message };
-    console.error(`[Proxy] Provider Error [${endpoint}]:`, errorData);
+    console.error(`[Inlomax Fault] ${endpoint}:`, errorData);
     return {
       success: false,
       error: errorData,
@@ -64,7 +61,7 @@ const callInlomax = async (endpoint: string, payload: any, method: string = 'POS
 
 app.get('/api/terminal/balance', async (_req: Request, res: Response) => {
   const result = await callInlomax('/balance', {}, 'GET');
-  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Inlomax Balance Node Offline", details: result.error });
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Liquidity Node Offline", details: result.error });
 });
 
 app.get('/api/terminal/services', async (_req: Request, res: Response) => {
@@ -72,19 +69,33 @@ app.get('/api/terminal/services', async (_req: Request, res: Response) => {
   res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Catalog Registry Blocked", details: result.error });
 });
 
+// --- VALIDATION ROUTES ---
+
+app.get('/api/terminal/validate-cable', async (req: Request, res: Response) => {
+  const { serviceID, iucNumber } = req.query;
+  const result = await callInlomax('/validate-cable', { serviceID, iucNumber }, 'POST');
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Cable Validation Node Fault", details: result.error });
+});
+
+app.get('/api/terminal/validate-meter', async (req: Request, res: Response) => {
+  const { serviceID, meterNumber, meterType } = req.query;
+  const result = await callInlomax('/validate-meter', { serviceID, meterNumber, meterType }, 'POST');
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Meter Validation Node Fault", details: result.error });
+});
+
+// --- PAYSTACK ROUTES ---
+
 app.get('/api/terminal/banks', async (_req: Request, res: Response) => {
-    console.log(`[Proxy] Probing Paystack... (Key Detected: ${PAYSTACK_SECRET.substring(0, 7)}...)`);
-    
     try {
         if (!PAYSTACK_SECRET) {
-            return res.status(500).json({ status: 'error', message: "Infrastructure Fault: PAYSTACK_SECRET_KEY missing in Vercel" });
+            return res.status(500).json({ status: 'error', message: "Infrastructure Fault: Secret Key Missing" });
         }
 
         if (PAYSTACK_SECRET.startsWith('pk_')) {
             return res.status(401).json({ 
                 status: 'error', 
-                message: "Security Mismatch: Public Key used instead of Secret Key",
-                details: "Paystack requires a Secret Key (sk_...) for backend bank lookups. Please update PAYSTACK_SECRET_KEY in Vercel."
+                message: "Security Mismatch",
+                details: "Secret Key (sk_...) required for bank sync."
             });
         }
         
@@ -97,22 +108,16 @@ app.get('/api/terminal/banks', async (_req: Request, res: Response) => {
         });
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
-        const errDetails = error.response?.data || error.message;
-        console.error("[Proxy] Paystack Bank Error:", errDetails);
-        res.status(500).json({ 
-            status: 'error', 
-            message: "Paystack Gateway Refused Connection", 
-            details: typeof errDetails === 'string' ? { raw: "Gateway returned non-JSON error. Check key validity." } : errDetails 
-        });
+        res.status(500).json({ status: 'error', message: "Gateway Communication Timeout" });
     }
 });
 
 app.get('/api/terminal/resolve', async (req: Request, res: Response) => {
     const { accountNumber, bankCode } = req.query;
-    console.log(`[Proxy] Resolving Identity: ${accountNumber} on ${bankCode}`);
     
     try {
-        if (!PAYSTACK_SECRET) throw new Error("Paystack Secret Key Missing");
+        if (!PAYSTACK_SECRET) throw new Error("Key Missing");
+        if (PAYSTACK_SECRET.startsWith('pk_')) throw new Error("Secret Key Required");
         
         const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
             headers: { 
@@ -126,8 +131,8 @@ app.get('/api/terminal/resolve', async (req: Request, res: Response) => {
         const errDetails = error.response?.data || error.message;
         res.status(500).json({ 
             status: 'error', 
-            message: "Identity Verification Protocol Fault", 
-            details: typeof errDetails === 'string' ? { raw: "Resolution node returned an error page." } : errDetails 
+            message: "Identity Verification Fault", 
+            details: errDetails 
         });
     }
 });
