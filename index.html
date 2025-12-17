@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OBATA VTU | Instant Top-up, Zero Stress</title>
+    <title>OBATA VTU | Connection Lab</title>
     <link rel="icon" type="image/png" href="/logo.png" />
     
     <!-- Fonts -->
@@ -23,20 +23,9 @@
             },
             colors: {
               brand: {
-                primary: '#0ea5e9', // Sky Blue
-                secondary: '#fbbf24', // Gold
-                dark: '#0f172a', // Slate 900
-                card: 'rgba(255, 255, 255, 0.05)',
-              }
-            },
-            animation: {
-              'float': 'float 6s ease-in-out infinite',
-              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-            },
-            keyframes: {
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-10px)' },
+                primary: '#0ea5e9',
+                secondary: '#fbbf24',
+                dark: '#0f172a',
               }
             }
           }
@@ -45,44 +34,36 @@
     </script>
     <style>
       body {
-        background-color: #0f172a;
+        background-color: #020617;
         color: #f8fafc;
         font-family: 'Plus Jakarta Sans', sans-serif;
       }
-      .glass {
-        background: rgba(255, 255, 255, 0.05);
-        backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-      }
+      .no-scrollbar::-webkit-scrollbar { display: none; }
+      .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
     
-    <!-- Import Map for React Environment -->
+    <!-- Unified Import Map (React 18.3.1) -->
     <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@18.3.1",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
     "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
-    "react-router-dom": "https://esm.sh/react-router-dom@6.22.3",
-    "react-hot-toast": "https://esm.sh/react-hot-toast@2.4.1",
-    "framer-motion": "https://esm.sh/framer-motion@11.0.8",
-    "lucide-react": "https://esm.sh/lucide-react@0.344.0",
-    "firebase/app": "https://esm.sh/firebase@10.8.0/app",
-    "firebase/auth": "https://esm.sh/firebase@10.8.0/auth",
-    "firebase/firestore": "https://esm.sh/firebase@10.8.0/firestore",
-    "firebase/storage": "https://esm.sh/firebase@10.8.0/storage",
-    "vite": "https://esm.sh/vite@^5.2.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^4.2.1",
-    "express": "https://esm.sh/express@^4.18.2",
-    "cors": "https://esm.sh/cors@^2.8.5",
-    "http-proxy-middleware": "https://esm.sh/http-proxy-middleware@^2.0.6",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-router-dom": "https://esm.sh/react-router-dom@6.22.3?deps=react@18.3.1",
+    "react-hot-toast": "https://esm.sh/react-hot-toast@2.4.1?deps=react@18.3.1",
+    "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.3.1",
+    "framer-motion": "https://esm.sh/framer-motion@11.0.8?deps=react@18.3.1",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "firebase/": "https://esm.sh/firebase@^12.7.0/",
-    "firebase-admin": "https://esm.sh/firebase-admin@^13.6.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.0",
     "dotenv": "https://esm.sh/dotenv@^17.2.3",
     "axios": "https://esm.sh/axios@^1.13.2",
-    "date-fns": "https://esm.sh/date-fns@^4.1.0"
+    "firebase-admin": "https://esm.sh/firebase-admin@^13.6.0",
+    "express": "https://esm.sh/express@^5.2.1",
+    "date-fns": "https://esm.sh/date-fns@^4.1.0",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "cors": "https://esm.sh/cors@^2.8.5"
   }
 }
 </script>

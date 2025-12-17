@@ -19,139 +19,59 @@ if (!admin.apps.length) {
     });
 }
 
-// Removed unused 'db' declaration to fix TS6133 error
-
 // Configuration
 const INLOMAX_BASE_URL = 'https://inlomax.com/api'; 
 const INLOMAX_API_KEY = process.env.INLOMAX_API_KEY;
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-// Middleware: Verify Firebase ID Token
-const verifyAuth = async (req: any, res: any, next: any) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized: No token provided' });
-    }
-
-    const token = authHeader.split('Bearer ')[1];
+// Provider Call Helper - Enhanced for Debugging
+const callProvider = async (endpoint: string, payload: any, method: 'GET' | 'POST' = 'POST') => {
+    const url = `${INLOMAX_BASE_URL}${endpoint}`;
     try {
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        req.user = decodedToken;
-        next();
-    } catch (error) {
-        return res.status(403).json({ error: 'Unauthorized: Invalid token' });
-    }
-};
-
-// Provider Call Helper
-const callProvider = async (endpoint: string, payload: any) => {
-    try {
-        console.log(`PROXY REQ: ${INLOMAX_BASE_URL}${endpoint}`);
-        const response = await axios.post(`${INLOMAX_BASE_URL}${endpoint}`, payload, {
+        console.log(`[NAKED TEST] INLOMAX ${method} REQ: ${url}`);
+        const config = {
+            method,
+            url,
+            data: payload,
             headers: {
                 'Authorization': `Token ${INLOMAX_API_KEY}`,
                 'Content-Type': 'application/json'
             }
-        });
-        return { success: true, data: response.data };
+        };
+        
+        const response = await axios(config);
+        return { success: true, data: response.data, status: response.status };
     } catch (error: any) {
-        console.error("PROXY ERR:", error.response?.data || error.message);
         const status = error.response?.status || 500;
-        const providerError = error.response?.data?.message || error.response?.data?.error || error.message;
-        return { success: false, error: providerError, status: status };
+        const providerErrorData = error.response?.data || error.message;
+        console.error(`[NAKED TEST] INLOMAX ERR [${status}]:`, providerErrorData);
+        
+        return { 
+            success: false, 
+            error: providerErrorData, 
+            status: status,
+            fullError: providerErrorData 
+        };
     }
 };
 
-// --- VTU Routes ---
-app.post('/vtu/airtime', verifyAuth, async (req, res) => {
+// --- NAKED TEST ROUTES (Auth Removed) ---
+
+app.get('/api/admin/inlomax-balance', async (req, res) => {
+    const result = await callProvider('/user', {}, 'GET');
+    res.status(result.status || 200).json(result);
+});
+
+app.post('/api/vtu/airtime', async (req, res) => {
     const result = await callProvider('/airtime', req.body);
-    if (!result.success) return res.status(result.status).json({ error: result.error });
-    res.json(result.data);
+    res.status(result.status || 200).json(result);
 });
 
-app.post('/vtu/data', verifyAuth, async (req, res) => {
+app.post('/api/vtu/data', async (req, res) => {
     const result = await callProvider('/data', req.body);
-    if (!result.success) return res.status(result.status).json({ error: result.error });
-    res.json(result.data);
-});
-
-app.post('/vtu/cable', verifyAuth, async (req, res) => {
-    const result = await callProvider('/subcable', req.body);
-    if (!result.success) return res.status(result.status).json({ error: result.error });
-    res.json(result.data);
-});
-
-app.post('/vtu/electricity', verifyAuth, async (req, res) => {
-    const result = await callProvider('/payelectric', req.body);
-    if (!result.success) return res.status(result.status).json({ error: result.error });
-    res.json(result.data);
-});
-
-app.post('/vtu/verify/meter', verifyAuth, async (req, res) => {
-    const result = await callProvider('/validatemeter', req.body);
-    if (!result.success) return res.status(result.status).json({ error: result.error });
-    res.json(result.data);
-});
-
-app.post('/vtu/verify/cable', verifyAuth, async (req, res) => {
-    const result = await callProvider('/validatecable', req.body);
-    if (!result.success) return res.status(result.status).json({ error: result.error });
-    res.json(result.data);
-});
-
-// --- Banking Routes (Paystack) ---
-// Prefixed 'req' with '_' to fix TS6133 error
-app.get('/misc/banks', verifyAuth, async (_req, res) => {
-    try {
-        console.log("FETCHING BANKS FROM PAYSTACK");
-        const response = await axios.get('https://api.paystack.co/bank', {
-            headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
-        });
-        // Paystack returns { status: true, message: "...", data: [...] }
-        if (response.data && response.data.status) {
-            return res.json({ success: true, data: response.data.data });
-        }
-        throw new Error("Paystack returned failure status");
-    } catch (error: any) {
-        console.error("BANK FETCH ERROR:", error.message);
-        res.status(500).json({ success: false, error: 'Failed to fetch banks' });
-    }
-});
-
-app.get('/misc/resolve-account', verifyAuth, async (req, res) => {
-    const { account_number, bank_code } = req.query;
-    try {
-        console.log(`RESOLVING: ${account_number} @ ${bank_code}`);
-        const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${account_number}&bank_code=${bank_code}`, {
-            headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
-        });
-        if (response.data && response.data.status) {
-            return res.json({ success: true, data: response.data.data });
-        }
-        throw new Error(response.data?.message || "Resolution failed");
-    } catch (error: any) {
-        console.error("RESOLVE ERROR:", error.response?.data || error.message);
-        res.status(400).json({ success: false, error: error.response?.data?.message || 'Could not resolve account' });
-    }
-});
-
-app.get('/payment/verify/:reference', verifyAuth, async (req, res) => {
-    const reference = req.params.reference;
-    try {
-        const response = await axios.get(`https://api.paystack.co/transaction/verify/${reference}`, {
-            headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
-        });
-        if (response.data.status && response.data.data.status === 'success') {
-             res.json({ success: true, data: response.data.data });
-        } else {
-             res.status(400).json({ success: false, message: "Transaction not successful" });
-        }
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
+    res.status(result.status || 200).json(result);
 });
 
 const PORT = process.env.PORT || 3000;

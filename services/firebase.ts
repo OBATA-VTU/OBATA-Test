@@ -1,23 +1,34 @@
-import { initializeApp } from 'firebase/app';
+
+import { initializeApp, getApp, getApps } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { config } from '../config';
 
-// Production Ready: Strict check for configuration
 const isConfigured = !!config.firebase.apiKey;
 
-if (!isConfigured) {
-  console.error('Firebase configuration is missing. Please check your environment variables.');
+let app;
+let auth: any = null;
+let db: any = null;
+let storage: any = null;
+// Fix: Initialize googleProvider
+let googleProvider: any = null;
+
+if (isConfigured) {
+  try {
+    app = getApps().length > 0 ? getApp() : initializeApp(config.firebase);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    storage = getStorage(app);
+    // Fix: Instantiate GoogleAuthProvider
+    googleProvider = new GoogleAuthProvider();
+  } catch (error) {
+    console.warn('Firebase initialization failed:', error);
+  }
+} else {
+  console.warn('Firebase configuration is missing. Auth-dependent features will be disabled.');
 }
 
-const app = initializeApp(config.firebase);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
-const googleProvider = new GoogleAuthProvider();
-
-// Export initialized instances
-export { app, auth, db, storage, googleProvider };
-// Deprecate isFirebaseInitialized check as we enforce config or fail
-export const isFirebaseInitialized = true;
+// Fix: Export googleProvider
+export { auth, db, storage, googleProvider };
+export const isFirebaseInitialized = isConfigured;

@@ -1,93 +1,25 @@
-import React, { PropsWithChildren } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import React from 'react';
 import { Toaster } from 'react-hot-toast';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ServiceProvider } from './contexts/ServiceContext';
-import { AppDataProvider } from './contexts/AppDataContext';
-import { Layout } from './components/Layout';
-import { LandingPage } from './components/LandingPage';
-import { ErrorBoundary } from './components/ErrorBoundary';
-
-// Pages
-import { AuthPage } from './pages/AuthPage'; 
-import { Dashboard } from './pages/Dashboard';
-import { ServicesPage } from './pages/ServicesPage';
-import { FundWallet } from './pages/FundWallet';
-import { P2PTransfer } from './pages/P2PTransfer';
-import { KoloPage } from './pages/KoloPage';
-import { ProfilePage } from './components/SecondaryPages'; 
-import { HistoryPage } from './components/HistoryPage';
-import { AdminPanel } from './components/AdminPanel';
 import { ApiTester } from './components/ApiTester';
-import { PaymentVerificationPage } from './pages/PaymentVerificationPage';
-import { PricingPage } from './components/PricingPage';
-
-const ProtectedRoute = ({ children }: PropsWithChildren) => {
-    const { currentUser, loading } = useAuth();
-    if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center"><div className="animate-spin w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full"></div></div>;
-    return currentUser ? <>{children}</> : <Navigate to="/auth" />;
-};
-
-const AdminRoute = ({ children }: PropsWithChildren) => {
-     const { currentUser, loading } = useAuth(); 
-     if (loading) return null;
-     // Gatekeeping via Firebase role removed as per prompt. Password lock handles security inside components.
-     return currentUser ? <>{children}</> : <Navigate to="/auth" />;
-};
-
-const LandingWrapper = () => {
-    const navigate = useNavigate();
-    return (
-        <LandingPage 
-            onGetStarted={() => navigate('/auth')} 
-            onNavigate={(page) => {
-                 if (page === 'PRICING_PUBLIC') navigate('/pricing');
-            }} 
-        />
-    );
-};
-
-const AuthWrapper = () => {
-    const navigate = useNavigate();
-    return <AuthPage onSuccess={() => navigate('/dashboard')} />;
-}
 
 const App = () => {
   return (
-    <ErrorBoundary>
-      <BrowserRouter>
-        <AuthProvider>
-          <AppDataProvider>
-            <ServiceProvider>
-              <Toaster position="top-center" />
-              <Routes>
-                {/* Public Routes */}
-                <Route path="/" element={<LandingWrapper />} />
-                <Route path="/auth" element={<AuthWrapper />} />
-                <Route path="/pricing" element={<Layout><PricingPage /></Layout>} />
-                <Route path="/verify-payment" element={<PaymentVerificationPage />} />
-
-                {/* Protected Dashboard Routes */}
-                <Route element={<Layout />}>
-                    <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                    <Route path="services/:serviceType?" element={<ProtectedRoute><ServicesPage /></ProtectedRoute>} />
-                    <Route path="wallet" element={<ProtectedRoute><FundWallet /></ProtectedRoute>} />
-                    <Route path="transfer" element={<ProtectedRoute><P2PTransfer /></ProtectedRoute>} />
-                    <Route path="kolo" element={<ProtectedRoute><KoloPage /></ProtectedRoute>} />
-                    <Route path="profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
-                    <Route path="history" element={<ProtectedRoute><HistoryPage /></ProtectedRoute>} />
-                    <Route path="admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
-                    <Route path="admin/tester" element={<AdminRoute><ApiTester /></AdminRoute>} />
-                </Route>
-
-                {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" />} />
-              </Routes>
-            </ServiceProvider>
-          </AppDataProvider>
-        </AuthProvider>
-      </BrowserRouter>
-    </ErrorBoundary>
+    <div className="min-h-screen bg-slate-950 p-4 md:p-8 flex flex-col items-center">
+      <Toaster 
+        position="top-center" 
+        toastOptions={{
+          style: {
+            background: '#1e293b',
+            color: '#fff',
+            borderRadius: '1rem',
+            border: '1px solid #334155'
+          }
+        }} 
+      />
+      <div className="w-full max-w-6xl">
+        <ApiTester />
+      </div>
+    </div>
   );
 };
 
