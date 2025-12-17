@@ -441,9 +441,9 @@ export const TransactionTerminal: React.FC = () => {
                     </h3>
                     <p className="text-slate-500 text-sm mb-10 leading-relaxed font-medium">The system is bridging bank identity nodes via the production proxy. This allows cross-website API resolution for bank accounts during fund withdrawals and peer transfers.</p>
                     <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 border-dashed text-emerald-400 font-mono text-[10px] uppercase tracking-widest leading-relaxed">
-                        > UPLINK_MODE: PROXY_RELAY<br/>
-                        > TARGET_NODE: PAYSTACK_BI_V2<br/>
-                        > STATUS: HANDSHAKE_CONFIRMED
+                        &gt; UPLINK_MODE: PROXY_RELAY<br/>
+                        &gt; TARGET_NODE: PAYSTACK_BI_V2<br/>
+                        &gt; STATUS: HANDSHAKE_CONFIRMED
                     </div>
                 </div>
             )}
