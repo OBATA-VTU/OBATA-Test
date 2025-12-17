@@ -1,23 +1,23 @@
 import React from 'react';
 import { Toaster } from 'react-hot-toast';
-import { ApiTester } from './components/ApiTester';
+import { TransactionTerminal } from './components/TransactionTerminal';
 
 const App = () => {
   return (
-    <div className="min-h-screen bg-slate-950 p-4 md:p-8 flex flex-col items-center">
+    <div className="min-h-screen bg-black text-slate-100 flex flex-col items-center">
       <Toaster 
-        position="top-center" 
+        position="top-right" 
         toastOptions={{
           style: {
-            background: '#1e293b',
+            background: '#111827',
             color: '#fff',
-            borderRadius: '1rem',
-            border: '1px solid #334155'
+            border: '1px solid #1f2937',
+            borderRadius: '0.75rem'
           }
         }} 
       />
-      <div className="w-full max-w-6xl">
-        <ApiTester />
+      <div className="w-full max-w-5xl py-8 px-4 md:py-12">
+        <TransactionTerminal />
       </div>
     </div>
   );
