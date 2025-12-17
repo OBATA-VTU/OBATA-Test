@@ -2,8 +2,11 @@ import React, { useState } from 'react';
 import { PiggyBank, Lock, TrendingUp, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { TransactionPinModal } from '../components/TransactionPinModal';
+import { ProcessingModal } from '../components/ProcessingModal';
+import { ReceiptModal } from '../components/ReceiptModal';
 import { doc, runTransaction, increment, serverTimestamp, collection } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { toast } from 'react-hot-toast';
 
 export const KoloPage: React.FC = () => {
   const { userProfile, refreshProfile, currentUser } = useAuth();
@@ -11,6 +14,7 @@ export const KoloPage: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [duration, setDuration] = useState('30');
   const [loading, setLoading] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
 
   const interestRate = 0.15; // 15% APY
   const numAmount = parseFloat(amount) || 0;
@@ -20,6 +24,7 @@ export const KoloPage: React.FC = () => {
 
   const handleSave = async () => {
       setLoading(true);
+      setShowPin(false);
       if (!currentUser) return;
       
       try {
@@ -46,10 +51,17 @@ export const KoloPage: React.FC = () => {
               });
           });
           await refreshProfile();
-          alert("Saved successfully!");
+          setReceiptData({
+              success: true,
+              data: {
+                  message: `Successfully locked ₦${numAmount} for ${numDuration} days.`,
+                  amount: numAmount,
+                  reference: `KOLO-${Date.now()}`
+              }
+          });
           setAmount('');
       } catch (e: any) {
-          alert(e.message);
+          toast.error(e.message);
       } finally {
           setLoading(false);
       }
@@ -64,6 +76,8 @@ export const KoloPage: React.FC = () => {
             title="Confirm Savings"
             amount={numAmount}
         />
+        <ProcessingModal isOpen={loading} text="Securing Funds..." />
+        <ReceiptModal isOpen={!!receiptData} onClose={() => setReceiptData(null)} response={receiptData} loading={false} />
 
         <div className="bg-gradient-to-r from-pink-600 to-rose-700 rounded-3xl p-8 text-white shadow-2xl relative overflow-hidden">
             <div className="relative z-10">

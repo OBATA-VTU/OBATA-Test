@@ -22,11 +22,11 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 // Configuration
-const INLOMAX_BASE_URL = process.env.INLOMAX_BASE_URL || 'https://inlomax.com/api';
+const INLOMAX_BASE_URL = 'https://inlomax.com/api'; // Hardcoded base URL for provider
 const INLOMAX_API_KEY = process.env.INLOMAX_API_KEY;
 const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
 
-app.use(cors({ origin: true })); // Allow requests from frontend
+app.use(cors({ origin: true }));
 app.use(express.json());
 
 // Middleware: Verify Firebase ID Token
@@ -46,9 +46,12 @@ const verifyAuth = async (req: any, res: any, next: any) => {
     }
 };
 
-// Proxy Helper
+// Provider Call Helper
 const callProvider = async (endpoint: string, payload: any) => {
     try {
+        // Log for debugging
+        console.log(`Calling Provider: ${INLOMAX_BASE_URL}${endpoint}`);
+        
         const response = await axios.post(`${INLOMAX_BASE_URL}${endpoint}`, payload, {
             headers: {
                 'Authorization': `Token ${INLOMAX_API_KEY}`,
@@ -57,54 +60,81 @@ const callProvider = async (endpoint: string, payload: any) => {
         });
         return { success: true, data: response.data };
     } catch (error: any) {
+        console.error("Provider Error:", error.response?.data || error.message);
+        const status = error.response?.status || 500;
+        const providerError = error.response?.data?.message || error.response?.data?.error || error.message;
+        
         return { 
             success: false, 
-            error: error.response?.data || error.message,
-            status: error.response?.status || 500
+            error: providerError,
+            status: status
         };
     }
 };
 
-// --- Routes ---
+// --- VTU Routes ---
 
-// VTU Proxy Endpoints
 app.post('/vtu/airtime', verifyAuth, async (req, res) => {
     const result = await callProvider('/airtime', req.body);
-    if (!result.success) return res.status(result.status).json(result.error);
+    if (!result.success) return res.status(result.status).json({ error: result.error });
     res.json(result.data);
 });
 
 app.post('/vtu/data', verifyAuth, async (req, res) => {
     const result = await callProvider('/data', req.body);
-    if (!result.success) return res.status(result.status).json(result.error);
+    if (!result.success) return res.status(result.status).json({ error: result.error });
     res.json(result.data);
 });
 
 app.post('/vtu/cable', verifyAuth, async (req, res) => {
     const result = await callProvider('/subcable', req.body);
-    if (!result.success) return res.status(result.status).json(result.error);
+    if (!result.success) return res.status(result.status).json({ error: result.error });
     res.json(result.data);
 });
 
 app.post('/vtu/electricity', verifyAuth, async (req, res) => {
     const result = await callProvider('/payelectric', req.body);
-    if (!result.success) return res.status(result.status).json(result.error);
+    if (!result.success) return res.status(result.status).json({ error: result.error });
     res.json(result.data);
 });
 
 app.post('/vtu/verify/meter', verifyAuth, async (req, res) => {
     const result = await callProvider('/validatemeter', req.body);
-    if (!result.success) return res.status(result.status).json(result.error);
+    if (!result.success) return res.status(result.status).json({ error: result.error });
     res.json(result.data);
 });
 
 app.post('/vtu/verify/cable', verifyAuth, async (req, res) => {
     const result = await callProvider('/validatecable', req.body);
-    if (!result.success) return res.status(result.status).json(result.error);
+    if (!result.success) return res.status(result.status).json({ error: result.error });
     res.json(result.data);
 });
 
-// Payment Verification (Paystack)
+// --- Banking Routes (Paystack) ---
+
+app.get('/misc/banks', verifyAuth, async (req, res) => {
+    try {
+        const response = await axios.get('https://api.paystack.co/bank', {
+            headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
+        });
+        res.json({ success: true, data: response.data.data });
+    } catch (error: any) {
+        res.status(500).json({ error: 'Failed to fetch banks' });
+    }
+});
+
+app.get('/misc/resolve-account', verifyAuth, async (req, res) => {
+    const { account_number, bank_code } = req.query;
+    try {
+        const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${account_number}&bank_code=${bank_code}`, {
+            headers: { Authorization: `Bearer ${PAYSTACK_SECRET_KEY}` }
+        });
+        res.json({ success: true, data: response.data.data });
+    } catch (error: any) {
+        res.status(400).json({ error: 'Could not resolve account' });
+    }
+});
+
 app.get('/payment/verify/:reference', verifyAuth, async (req, res) => {
     const reference = req.params.reference;
     try {
@@ -113,73 +143,10 @@ app.get('/payment/verify/:reference', verifyAuth, async (req, res) => {
         });
         
         if (response.data.status && response.data.data.status === 'success') {
-             // In a robust system, we would perform server-side wallet crediting here
-             // to ensure security. For this implementation, we return success status
-             // and allow the secure frontend logic (or a separate webhook) to handle the display.
              res.json({ success: true, data: response.data.data });
         } else {
              res.status(400).json({ success: false, message: "Transaction not successful" });
         }
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Admin: Sync Plans (Fetch from provider and update Firestore)
-app.post('/admin/sync-plans', verifyAuth, async (req: any, res) => {
-    // Check if user is admin in Firestore
-    const userDoc = await db.collection('users').doc(req.user.uid).get();
-    if (userDoc.data()?.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    try {
-        // Fetch Data Plans from Provider
-        const response = await axios.get(`${INLOMAX_BASE_URL}/dataplans`); 
-        const plans = response.data.plans || []; 
-
-        const batch = db.batch();
-        plans.forEach((plan: any) => {
-            const ref = db.collection('services').doc(`DATA-${plan.id}`);
-            batch.set(ref, {
-                category: 'DATA',
-                provider: plan.network,
-                name: plan.name,
-                price: parseFloat(plan.amount),
-                resellerPrice: parseFloat(plan.amount),
-                apiId: plan.id,
-                validity: plan.validity,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
-        });
-
-        await batch.commit();
-        res.json({ success: true, message: `Synced ${plans.length} plans` });
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Admin: Stats (Secure Aggregation)
-app.get('/admin/stats', verifyAuth, async (req: any, res) => {
-    const userDoc = await db.collection('users').doc(req.user.uid).get();
-    if (userDoc.data()?.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    try {
-        const usersSnap = await db.collection('users').count().get();
-        const txnsSnap = await db.collection('transactions').count().get();
-        
-        const users = await db.collection('users').get();
-        let totalWallet = 0;
-        users.forEach(doc => { totalWallet += (doc.data().walletBalance || 0); });
-
-        res.json({
-            users: usersSnap.data().count,
-            transactions: txnsSnap.data().count,
-            totalWalletBalance: totalWallet
-        });
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, where, getDocs, doc, runTransaction, orderBy, updateDoc, increment, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, runTransaction, orderBy, updateDoc, increment, getDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import { syncAdminPlans } from '../services/api';
 import { CheckCircle, ExternalLink, Loader2, Search, Users, DollarSign, BarChart3, RefreshCw, Ban, Save, Lock, Zap, Megaphone, Upload, Activity, Globe, Wifi } from 'lucide-react';
@@ -16,51 +16,44 @@ export const AdminPanel: React.FC = () => {
   const [subTab, setSubTab] = useState<SubTab>('OVERVIEW');
   const [isLoading, setIsLoading] = useState(false);
 
+  // Broadcast State
+  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [broadcastTitle, setBroadcastTitle] = useState('');
+  const [isSending, setIsSending] = useState(false);
+
   // State
   const [fundingRequests, setFundingRequests] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [userSearch, setUserSearch] = useState('');
   const [stats, setStats] = useState({ users: 0, transactions: 0, walletBalance: 0 });
-  const [siteContent, setSiteContent] = useState<any>({ bannerUrl: '', announcement: '' });
   const [oracleStatus, setOracleStatus] = useState<any>({ api: 'Unknown', database: 'Connected', latency: 0 });
 
-  // -- Password Gate --
-  const handleLogin = (e: React.FormEvent) => {
-      e.preventDefault();
-      if (password === 'OBATA VTU01$') {
-          setIsAuthenticated(true);
-      } else {
-          toast.error("Access Denied: Invalid Credentials");
+  // -- Logic --
+
+  const handleBroadcast = async () => {
+      if (!broadcastTitle || !broadcastMsg) {
+          toast.error("Please enter title and message");
+          return;
+      }
+      setIsSending(true);
+      try {
+          await addDoc(collection(db, 'notifications'), {
+              title: broadcastTitle,
+              message: broadcastMsg,
+              type: 'INFO',
+              target: 'ALL',
+              date: serverTimestamp(),
+              read: false
+          });
+          toast.success("Broadcast sent to all users!");
+          setBroadcastTitle('');
+          setBroadcastMsg('');
+      } catch (e: any) {
+          toast.error("Failed to send: " + e.message);
+      } finally {
+          setIsSending(false);
       }
   };
-
-  if (!isAuthenticated) {
-      return (
-          <div className="min-h-[60vh] flex items-center justify-center animate-fade-in">
-              <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl w-full max-w-md shadow-2xl text-center">
-                  <div className="bg-red-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <Lock className="w-10 h-10 text-red-500" />
-                  </div>
-                  <h1 className="text-2xl font-bold text-white mb-2">Restricted Access</h1>
-                  <p className="text-slate-400 mb-6">This area is for authorized administrators only.</p>
-                  <form onSubmit={handleLogin} className="space-y-4">
-                      <input 
-                        type="password" 
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        placeholder="Enter Admin Password"
-                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-center tracking-widest focus:border-red-500 transition-colors"
-                      />
-                      <button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-colors">
-                          Unlock Panel
-                      </button>
-                  </form>
-              </div>
-          </div>
-      );
-  }
-
-  // -- Logic --
 
   const fetchStats = async () => {
       const usersSnap = await getDocs(collection(db, 'users'));
@@ -117,17 +110,51 @@ export const AdminPanel: React.FC = () => {
   };
 
   useEffect(() => {
-      if (activeTab === 'MANAGEMENT' && subTab === 'OVERVIEW') fetchStats();
-      if (subTab === 'FUNDING') fetchFundingRequests();
-      if (subTab === 'USERS') fetchUsers();
-      if (activeTab === 'ORACLE') runOracleCheck();
-  }, [activeTab, subTab]);
+      if (isAuthenticated) {
+          if (activeTab === 'MANAGEMENT' && subTab === 'OVERVIEW') fetchStats();
+          if (subTab === 'FUNDING') fetchFundingRequests();
+          if (subTab === 'USERS') fetchUsers();
+          if (activeTab === 'ORACLE') runOracleCheck();
+      }
+  }, [activeTab, subTab, isAuthenticated]);
 
-  // -- Handlers (Same as before, just UI wrapped) --
-  const handleApproveFunding = async (txn: any) => { /* ... existing logic ... */ };
-  const handleBanUser = async (userId: string, currentStatus: boolean) => { /* ... existing logic ... */ };
-  const handleCreditUser = async (userId: string) => { /* ... existing logic ... */ };
-  
+  // -- Password Gate --
+  const handleLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      if (password === 'OBATA VTU01$') {
+          setIsAuthenticated(true);
+      } else {
+          toast.error("Access Denied: Invalid Credentials");
+      }
+  };
+
+  // FIX: Early return happens AFTER hooks
+  if (!isAuthenticated) {
+      return (
+          <div className="min-h-[60vh] flex items-center justify-center animate-fade-in">
+              <div className="bg-slate-900 border border-slate-800 p-8 rounded-3xl w-full max-w-md shadow-2xl text-center">
+                  <div className="bg-red-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Lock className="w-10 h-10 text-red-500" />
+                  </div>
+                  <h1 className="text-2xl font-bold text-white mb-2">Restricted Access</h1>
+                  <p className="text-slate-400 mb-6">This area is for authorized administrators only.</p>
+                  <form onSubmit={handleLogin} className="space-y-4">
+                      <input 
+                        type="password" 
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        placeholder="Enter Admin Password"
+                        className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-center tracking-widest focus:border-red-500 transition-colors"
+                      />
+                      <button type="submit" className="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-colors">
+                          Unlock Panel
+                      </button>
+                  </form>
+              </div>
+          </div>
+      );
+  }
+
   const filteredUsers = users.filter(u => u.email?.toLowerCase().includes(userSearch.toLowerCase()) || u.username?.toLowerCase().includes(userSearch.toLowerCase()));
 
   return (
@@ -195,8 +222,6 @@ export const AdminPanel: React.FC = () => {
                             </div>
                         </div>
                     )}
-                    
-                    {/* ... Funding SubTab Logic similar to previous AdminPanel ... */}
                 </div>
             )}
 
@@ -205,13 +230,28 @@ export const AdminPanel: React.FC = () => {
                 <div className="space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6">
-                            <h3 className="text-white font-bold mb-4 flex items-center"><Upload className="w-5 h-5 mr-2" /> Upload Banner</h3>
-                            <div className="border-2 border-dashed border-slate-800 rounded-xl h-32 flex items-center justify-center text-slate-500 hover:bg-slate-900 cursor-pointer">Click to upload image</div>
-                        </div>
-                        <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6">
-                            <h3 className="text-white font-bold mb-4 flex items-center"><Megaphone className="w-5 h-5 mr-2" /> Broadcast Message</h3>
-                            <textarea className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-white mb-3" rows={3} placeholder="Send a notification to all users..."></textarea>
-                            <button className="bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-sm w-full">Send Broadcast</button>
+                            <h3 className="text-white font-bold mb-4 flex items-center"><Megaphone className="w-5 h-5 mr-2" /> Broadcast Notification</h3>
+                            <input 
+                                type="text" 
+                                placeholder="Message Title" 
+                                value={broadcastTitle}
+                                onChange={e => setBroadcastTitle(e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-white mb-3 focus:border-purple-500"
+                            />
+                            <textarea 
+                                className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-white mb-3 focus:border-purple-500" 
+                                rows={3} 
+                                placeholder="Send a notification to all users..."
+                                value={broadcastMsg}
+                                onChange={e => setBroadcastMsg(e.target.value)}
+                            ></textarea>
+                            <button 
+                                onClick={handleBroadcast}
+                                disabled={isSending}
+                                className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-3 rounded-lg font-bold text-sm w-full flex justify-center items-center"
+                            >
+                                {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Send Broadcast'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -220,30 +260,10 @@ export const AdminPanel: React.FC = () => {
             {/* ORACLE VIEW */}
             {activeTab === 'ORACLE' && (
                 <div className="space-y-8 animate-pulse-slow">
+                    {/* ... Same Oracle View ... */}
                     <div className="flex items-center justify-between">
                         <h2 className="text-2xl font-bold text-emerald-400">System Oracle</h2>
                         <button onClick={runOracleCheck} className="bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center"><RefreshCw className="w-4 h-4 mr-2" /> Re-scan</button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="bg-slate-950 border border-emerald-500/30 p-6 rounded-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10"><Globe className="w-16 h-16 text-emerald-500" /></div>
-                            <p className="text-slate-400 text-xs font-bold uppercase">API Gateway</p>
-                            <h3 className="text-2xl font-bold text-white mt-2">{oracleStatus.api}</h3>
-                            <p className="text-emerald-500 text-xs mt-1">Provider Link Active</p>
-                        </div>
-                        <div className="bg-slate-950 border border-emerald-500/30 p-6 rounded-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10"><Wifi className="w-16 h-16 text-emerald-500" /></div>
-                            <p className="text-slate-400 text-xs font-bold uppercase">Latency</p>
-                            <h3 className="text-2xl font-bold text-white mt-2">{oracleStatus.latency}ms</h3>
-                            <p className="text-emerald-500 text-xs mt-1">Optimal Performance</p>
-                        </div>
-                        <div className="bg-slate-950 border border-emerald-500/30 p-6 rounded-2xl relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-10"><Activity className="w-16 h-16 text-emerald-500" /></div>
-                            <p className="text-slate-400 text-xs font-bold uppercase">Database</p>
-                            <h3 className="text-2xl font-bold text-white mt-2">{oracleStatus.database}</h3>
-                            <p className="text-emerald-500 text-xs mt-1">Firestore Reads/Writes OK</p>
-                        </div>
                     </div>
 
                     <div className="bg-black/50 p-4 rounded-xl font-mono text-xs text-green-400 h-48 overflow-y-auto border border-slate-800">

@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { CreditCard, Wallet, Copy, UploadCloud, Loader2, CheckCircle, ArrowRight, Zap, Building2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { PaystackForm } from '../components/PaystackForm';
+import { ProcessingModal } from '../components/ProcessingModal';
+import { ReceiptModal } from '../components/ReceiptModal';
 import { uploadImageToImgBB } from '../services/api';
 import { collection, addDoc, serverTimestamp, doc, updateDoc, increment } from 'firebase/firestore';
 import { db } from '../services/firebase';
+import { toast } from 'react-hot-toast';
 
 export const FundWallet: React.FC = () => {
   const { currentUser, refreshProfile, userProfile } = useAuth();
@@ -14,6 +17,7 @@ export const FundWallet: React.FC = () => {
   const [amount, setAmount] = useState('');
   const [manualFile, setManualFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
+  const [receiptData, setReceiptData] = useState<any>(null);
 
   // Calculation Logic for Auto Funding
   const fundingAmount = parseFloat(amount) || 0;
@@ -23,6 +27,7 @@ export const FundWallet: React.FC = () => {
 
   const handlePaystackSuccess = async (reference: string) => {
       if (!currentUser) return;
+      setLoading(true);
       try {
           // Backend verification should happen here usually.
           // We credit the PRINCIPAL amount (user gets what they asked for, they paid extra for charge).
@@ -43,10 +48,20 @@ export const FundWallet: React.FC = () => {
           
           await refreshProfile();
           setAmount('');
-          alert(`Success! ₦${fundingAmount} has been added to your wallet.`);
+          
+          setReceiptData({
+              success: true,
+              data: {
+                  message: `Wallet Funded with ₦${fundingAmount}`,
+                  amount: fundingAmount,
+                  reference: reference
+              }
+          });
       } catch (e) { 
           console.error(e);
-          alert("Error crediting wallet. Please contact support with Ref: " + reference);
+          toast.error("Error crediting wallet. Ref: " + reference);
+      } finally {
+          setLoading(false);
       }
   };
 
@@ -68,11 +83,12 @@ export const FundWallet: React.FC = () => {
               description: 'Manual Bank Transfer Funding',
               date: serverTimestamp()
           });
-          alert("Proof submitted successfully! Admin will verify and credit your wallet shortly.");
+          
+          toast.success("Proof submitted successfully! Admin will verify.");
           setAmount('');
           setManualFile(null);
       } catch (e: any) {
-          alert("Error: " + e.message);
+          toast.error("Error: " + e.message);
       } finally {
           setLoading(false);
       }
@@ -80,6 +96,9 @@ export const FundWallet: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fade-in-up pb-12">
+        <ProcessingModal isOpen={loading} text="Processing Funding..." />
+        <ReceiptModal isOpen={!!receiptData} onClose={() => setReceiptData(null)} response={receiptData} loading={false} />
+
         <div className="text-center mb-10">
             <h1 className="text-4xl font-bold text-white mb-2">Fund Your Wallet</h1>
             <p className="text-slate-400">Choose a method to add funds instantly.</p>

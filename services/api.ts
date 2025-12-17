@@ -7,7 +7,7 @@ const getEnv = (key: string) => {
 };
 
 // Point to our own Backend Proxy
-const BACKEND_URL = getEnv('VITE_BACKEND_URL') || '/api'; // Use relative path if proxied by Vite/Vercel
+const BACKEND_URL = getEnv('VITE_BACKEND_URL') || '/api'; 
 
 // Helper to get Firebase Token
 const getAuthToken = async () => {
@@ -36,8 +36,23 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
       const endTime = performance.now();
       const data = await res.json();
 
+      if (!res.ok) {
+          let errorMessage = "An unexpected error occurred.";
+          if (data && data.error) errorMessage = typeof data.error === 'string' ? data.error : JSON.stringify(data.error);
+          else if (data && data.message) errorMessage = data.message;
+          
+          return {
+              success: false,
+              status: res.status,
+              statusText: res.statusText,
+              data: data,
+              duration: Math.round(endTime - startTime),
+              error: errorMessage
+          };
+      }
+
       return {
-          success: res.ok,
+          success: true,
           status: res.status,
           statusText: res.statusText,
           data: data,
@@ -55,7 +70,21 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
   }
 };
 
-// --- Real Service Functions (Via Backend) ---
+// --- Service Functions ---
+
+export const getBanks = async () => {
+    return executeApiRequest({
+        url: `${BACKEND_URL}/misc/banks`,
+        method: 'GET'
+    });
+};
+
+export const resolveBankAccount = async (accountNumber: string, bankCode: string) => {
+    return executeApiRequest({
+        url: `${BACKEND_URL}/misc/resolve-account?account_number=${accountNumber}&bank_code=${bankCode}`,
+        method: 'GET'
+    });
+};
 
 export const buyAirtime = async (network: string, amount: number, phone: string, requestId: string) => {
   return executeApiRequest({
@@ -122,13 +151,8 @@ export const syncAdminPlans = async () => {
 export const uploadImageToImgBB = async (file: File): Promise<string> => {
   const formData = new FormData();
   formData.append('image', file);
-  // Hardcoded as requested
   const key = '6335530a0b22ceea3ae8c5699049bd5e'; 
-  
-  const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, {
-      method: 'POST',
-      body: formData
-  });
+  const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, { method: 'POST', body: formData });
   const data = await res.json();
   if (data.success) return data.data.url;
   throw new Error('Image upload failed');
