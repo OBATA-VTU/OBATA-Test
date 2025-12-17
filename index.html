@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OBATA VTU | Connection Lab</title>
+    <title>OBATA VTU | Command Center</title>
     <link rel="icon" type="image/png" href="/logo.png" />
     
     <!-- Fonts -->
@@ -40,9 +40,11 @@
       }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+      .animate-fade-in { animation: fade-in 0.6s ease-out forwards; }
     </style>
     
-    <!-- Unified Import Map (React 18.3.1) -->
+    <!-- Unified Import Map (React 18.3.1 Only) -->
     <script type="importmap">
 {
   "imports": {
@@ -53,17 +55,19 @@
     "react-hot-toast": "https://esm.sh/react-hot-toast@2.4.1?deps=react@18.3.1",
     "lucide-react": "https://esm.sh/lucide-react@0.344.0?deps=react@18.3.1",
     "framer-motion": "https://esm.sh/framer-motion@11.0.8?deps=react@18.3.1",
-    "react/": "https://esm.sh/react@^19.2.3/",
+    "firebase/app": "https://esm.sh/firebase@10.8.0/app",
+    "firebase/auth": "https://esm.sh/firebase@10.8.0/auth",
+    "firebase/firestore": "https://esm.sh/firebase@10.8.0/firestore",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.0",
-    "dotenv": "https://esm.sh/dotenv@^17.2.3",
-    "axios": "https://esm.sh/axios@^1.13.2",
-    "firebase-admin": "https://esm.sh/firebase-admin@^13.6.0",
-    "express": "https://esm.sh/express@^5.2.1",
-    "date-fns": "https://esm.sh/date-fns@^4.1.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
     "firebase/": "https://esm.sh/firebase@^12.7.0/",
-    "cors": "https://esm.sh/cors@^2.8.5"
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "express": "https://esm.sh/express@^5.2.1",
+    "cors": "https://esm.sh/cors@^2.8.5",
+    "axios": "https://esm.sh/axios@^1.13.2",
+    "dotenv": "https://esm.sh/dotenv@^17.2.3",
+    "date-fns": "https://esm.sh/date-fns@^4.1.0"
   }
 }
 </script>

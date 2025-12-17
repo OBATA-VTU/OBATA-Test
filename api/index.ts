@@ -9,7 +9,7 @@ const app = express();
 app.use(cors({ origin: true }));
 app.use(express.json());
 
-// FIXED INLOMAX CONFIGURATION FROM PROVIDED DOCS
+// OBATA VTU CORE CONFIGURATION
 const INLOMAX_BASE_URL = 'https://inlomax.com/api';
 const INLOMAX_API_KEY = 'se2h4rl9cqhabg07tft55ivg4sp9b0a5jca1u3qe';
 
@@ -21,7 +21,8 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
       url,
       headers: {
         'Authorization': `Token ${INLOMAX_API_KEY}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
       }
     };
     
@@ -40,57 +41,38 @@ const callInlomax = async (endpoint: string, payload: any, method: 'GET' | 'POST
   }
 };
 
-// --- TRANSACTION TERMINAL ROUTES ---
+// --- SYSTEM DIAGNOSTIC ROUTES ---
 
-// 1. Balance
 app.get('/api/terminal/balance', async (req, res) => {
   const result = await callInlomax('/balance', {}, 'GET');
   res.status(result.status).json(result.data);
 });
 
-// 2. Airtime
+app.get('/api/terminal/services', async (req, res) => {
+  const result = await callInlomax('/services', {}, 'GET');
+  res.status(result.status).json(result.data);
+});
+
 app.post('/api/terminal/airtime', async (req, res) => {
   const result = await callInlomax('/airtime', req.body);
   res.status(result.status).json(result.data);
 });
 
-// 3. Data
 app.post('/api/terminal/data', async (req, res) => {
   const result = await callInlomax('/data', req.body);
   res.status(result.status).json(result.data);
 });
 
-// 4. Cable Validation
-app.post('/api/terminal/validate-cable', async (req, res) => {
-  const result = await callInlomax('/validatecable', req.body);
-  res.status(result.status).json(result.data);
+// Paystack Bank Fetch Proxy
+app.get('/api/terminal/banks', async (req, res) => {
+    try {
+        const response = await axios.get('https://api.paystack.co/bank', {
+            headers: { 'Authorization': `Bearer ${process.env.VITE_PAYSTACK_SECRET_KEY || ''}` }
+        });
+        res.json(response.data);
+    } catch (error: any) {
+        res.status(500).json({ status: false, message: "Paystack Bank Fetch Failed" });
+    }
 });
-
-// 5. Cable Purchase
-app.post('/api/terminal/buy-cable', async (req, res) => {
-  const result = await callInlomax('/subcable', req.body);
-  res.status(result.status).json(result.data);
-});
-
-// 6. Electricity Validation
-app.post('/api/terminal/validate-meter', async (req, res) => {
-  const result = await callInlomax('/validatemeter', req.body);
-  res.status(result.status).json(result.data);
-});
-
-// 7. Electricity Purchase
-app.post('/api/terminal/buy-electricity', async (req, res) => {
-  const result = await callInlomax('/payelectric', req.body);
-  res.status(result.status).json(result.data);
-});
-
-// 8. Education
-app.post('/api/terminal/buy-education', async (req, res) => {
-  const result = await callInlomax('/education', req.body);
-  res.status(result.status).json(result.data);
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Transaction Terminal active on port ${PORT}`));
 
 export default app;
