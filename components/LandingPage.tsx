@@ -88,7 +88,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
         </div>
       </nav>
 
-      {/* Hero: Higher Impact */}
+      {/* Hero Section */}
       <section className="relative pt-48 pb-32 px-6 overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[800px] bg-blue-600/10 rounded-full blur-[160px] -z-10 animate-pulse-glow"></div>
         
@@ -226,4 +226,89 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
       <section id="pricing" className="py-32 bg-slate-900/20 border-y border-white/5">
           <div className="max-w-7xl mx-auto px-6">
               <div className="text-center mb-20">
-                  <h2 className="text-5xl md:text-7xl font-black mb-6
+                  <h2 className="text-5xl md:text-7xl font-black mb-6 tracking-tighter">Live Market Rates</h2>
+                  <p className="text-slate-400 text-lg">Real-time pricing for our top bundles.</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                  {[
+                      { network: 'MTN', plan: '1.0GB', price: '255', validity: '30 Days', type: 'SME' },
+                      { network: 'AIRTEL', plan: '1.0GB', price: '250', validity: '30 Days', type: 'CG' },
+                      { network: 'GLO', plan: '1.35GB', price: '450', validity: '30 Days', type: 'DATA' },
+                      { network: '9MOBILE', plan: '1.0GB', price: '180', validity: '30 Days', type: 'SME' }
+                  ].map((p, i) => (
+                      <div key={i} className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 text-center hover:border-blue-500 transition-all group reveal">
+                          <p className="text-blue-500 font-black text-[10px] uppercase tracking-widest mb-4">{p.network} {p.type}</p>
+                          <h4 className="text-4xl font-black text-white mb-2">{p.plan}</h4>
+                          <p className="text-slate-500 text-sm mb-8">{p.validity}</p>
+                          <div className="text-3xl font-black text-white mb-8">₦{p.price}</div>
+                          <button onClick={() => navigate('/auth')} className="w-full bg-white text-slate-950 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-500 hover:text-white transition-all">Buy Now</button>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section id="faq" className="py-32 px-6">
+          <div className="max-w-3xl mx-auto">
+              <h2 className="text-4xl md:text-6xl font-black text-center mb-20 tracking-tighter">Common Inquiries</h2>
+              <div className="space-y-4">
+                  {faqs.map((f, i) => (
+                      <div key={i} className="bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden transition-all">
+                          <button 
+                            onClick={() => setActiveFaq(activeFaq === i ? null : i)}
+                            className="w-full p-8 flex items-center justify-between text-left"
+                          >
+                              <span className="text-lg font-bold text-white">{f.q}</span>
+                              {activeFaq === i ? <Minus className="text-blue-500" /> : <Plus className="text-slate-500" />}
+                          </button>
+                          {activeFaq === i && (
+                              <div className="px-8 pb-8 text-slate-400 leading-relaxed animate-fade-in">
+                                  {f.a}
+                              </div>
+                          )}
+                      </div>
+                  ))}
+              </div>
+          </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="pt-32 pb-20 px-6 bg-slate-950 border-t border-white/5">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-20 mb-20">
+              <div className="col-span-2">
+                  <div className="flex items-center space-x-3 mb-8">
+                      <Logo className="h-12 w-12" />
+                      <span className="text-3xl font-black text-white tracking-tighter">OBATA VTU</span>
+                  </div>
+                  <p className="text-slate-500 max-w-sm text-lg leading-relaxed">The standard for automated VTU services in Nigeria. Reliability and speed prioritized.</p>
+              </div>
+              <div>
+                  <h5 className="text-white font-black text-[10px] uppercase tracking-[0.3em] mb-10">Platform</h5>
+                  <ul className="space-y-4 text-slate-500 font-medium">
+                      <li><button onClick={() => navigate('/auth')} className="hover:text-blue-500 transition-colors">Register Account</button></li>
+                      <li><button onClick={() => scrollToSection('pricing')} className="hover:text-blue-500 transition-colors">Pricing Hub</button></li>
+                      <li><button onClick={() => scrollToSection('features')} className="hover:text-blue-500 transition-colors">Features</button></li>
+                  </ul>
+              </div>
+              <div>
+                  <h5 className="text-white font-black text-[10px] uppercase tracking-[0.3em] mb-10">Connect</h5>
+                  <ul className="space-y-4 text-slate-500 font-medium">
+                      <li><a href="mailto:support@obatavtu.com" className="hover:text-blue-500 transition-colors">Official Support</a></li>
+                      <li><a href="#" className="hover:text-blue-500 transition-colors">Twitter (X)</a></li>
+                      <li><a href="#" className="hover:text-blue-500 transition-colors">Whatsapp Gateway</a></li>
+                  </ul>
+              </div>
+          </div>
+          <div className="max-w-7xl mx-auto pt-10 border-t border-white/5 flex flex-col md:flex-row justify-between items-center text-slate-600 text-xs font-bold uppercase tracking-widest">
+              <p>&copy; 2024 OBATA AUTOMATION SYSTEMS</p>
+              <div className="flex space-x-10 mt-6 md:mt-0">
+                  <a href="#">Privacy Protocol</a>
+                  <a href="#">Security Statement</a>
+              </div>
+          </div>
+      </footer>
+    </div>
+  );
+};
