@@ -13,19 +13,7 @@ app.use(express.json());
 const INLOMAX_BASE_URL = 'https://inlomax.com/api';
 const INLOMAX_API_KEY = 'se2h4rl9cqhabg07tft55ivg4sp9b0a5jca1u3qe';
 
-/**
- * PAYSTACK SECRET KEY RESOLUTION
- * Bank resolution and listing MUST use the Secret Key (sk_...).
- */
-const PAYSTACK_SECRET = 
-    process.env.PAYSTACK_SECRET_KEY || 
-    process.env.VITE_PAYSTACK_SECRET_KEY || 
-    process.env.PAYSTACK_PUBLIC_KEY || 
-    process.env.VITE_PAYSTACK_PUBLIC_KEY || 
-    '';
-
 const callInlomax = async (endpoint: string, payload: any, method: string = 'POST') => {
-  // Ensure we don't have double slashes if base has trailing
   const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   const url = `${INLOMAX_BASE_URL}${cleanEndpoint}`;
   
@@ -57,7 +45,7 @@ const callInlomax = async (endpoint: string, payload: any, method: string = 'POS
     return {
       success: false,
       error: typeof errorData === 'string' && errorData.includes('<!DOCTYPE') 
-        ? { message: "Route Not Found on Provider Node (404)", code: "ENDPOINT_MISMATCH" } 
+        ? { message: `Route ${endpoint} Not Found (404)`, code: "ENDPOINT_MISMATCH" } 
         : errorData,
       status: error.response?.status || 500
     };
@@ -76,73 +64,55 @@ app.get('/api/terminal/services', async (_req: Request, res: Response) => {
   res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Catalog Registry Blocked", details: result.error });
 });
 
-// --- VALIDATION ROUTES ---
-// Corrected to standard Inlomax lookup endpoints (GET /validate-iuc and GET /validate-meter)
+// --- PURCHASE & VALIDATION ROUTES ---
 
-app.get('/api/terminal/validate-cable', async (req: Request, res: Response) => {
-  const { serviceID, iucNumber } = req.query;
-  // Inlomax standard endpoint is usually /validate-iuc
-  const result = await callInlomax('/validate-iuc', { serviceID, iucNumber }, 'GET');
+app.post('/api/terminal/purchase/airtime', async (req: Request, res: Response) => {
+  const result = await callInlomax('/airtime', req.body, 'POST');
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Airtime Purchase Node Fault", details: result.error });
+});
+
+app.post('/api/terminal/purchase/data', async (req: Request, res: Response) => {
+  const result = await callInlomax('/data', req.body, 'POST');
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Data Purchase Node Fault", details: result.error });
+});
+
+app.post('/api/terminal/purchase/cable', async (req: Request, res: Response) => {
+  const result = await callInlomax('/subcable', req.body, 'POST');
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Cable Purchase Node Fault", details: result.error });
+});
+
+app.post('/api/terminal/purchase/electricity', async (req: Request, res: Response) => {
+  const result = await callInlomax('/payelectric', req.body, 'POST');
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Electric Purchase Node Fault", details: result.error });
+});
+
+app.post('/api/terminal/purchase/education', async (req: Request, res: Response) => {
+  const result = await callInlomax('/education', req.body, 'POST');
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Education Purchase Node Fault", details: result.error });
+});
+
+app.post('/api/terminal/validate/cable', async (req: Request, res: Response) => {
+  const result = await callInlomax('/validatecable', req.body, 'POST');
   res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Cable Validation Node Fault", details: result.error });
 });
 
-app.get('/api/terminal/validate-meter', async (req: Request, res: Response) => {
-  const { serviceID, meterNumber, meterType } = req.query;
-  const result = await callInlomax('/validate-meter', { serviceID, meterNumber, meterType }, 'GET');
+app.post('/api/terminal/validate/meter', async (req: Request, res: Response) => {
+  const result = await callInlomax('/validatemeter', req.body, 'POST');
   res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Meter Validation Node Fault", details: result.error });
 });
 
-// --- PAYSTACK ROUTES ---
+// --- PAYSTACK ROUTES (FOR COMPLETENESS) ---
 
 app.get('/api/terminal/banks', async (_req: Request, res: Response) => {
+    const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || process.env.VITE_PAYSTACK_SECRET_KEY || '';
     try {
-        if (!PAYSTACK_SECRET) {
-            return res.status(500).json({ status: 'error', message: "Infrastructure Fault: Secret Key Missing" });
-        }
-
-        if (PAYSTACK_SECRET.startsWith('pk_')) {
-            return res.status(401).json({ 
-                status: 'error', 
-                message: "Security Mismatch",
-                details: "Secret Key (sk_...) required for bank sync."
-            });
-        }
-        
+        if (!PAYSTACK_SECRET) return res.status(500).json({ status: 'error', message: "Secret Key Missing" });
         const response = await axios.get('https://api.paystack.co/bank', {
-            headers: { 
-                'Authorization': `Bearer ${PAYSTACK_SECRET}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 10000
+            headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET}` }
         });
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
-        res.status(500).json({ status: 'error', message: "Gateway Communication Timeout" });
-    }
-});
-
-app.get('/api/terminal/resolve', async (req: Request, res: Response) => {
-    const { accountNumber, bankCode } = req.query;
-    
-    try {
-        if (!PAYSTACK_SECRET) throw new Error("Key Missing");
-        if (PAYSTACK_SECRET.startsWith('pk_')) throw new Error("Secret Key Required");
-        
-        const response = await axios.get(`https://api.paystack.co/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`, {
-            headers: { 
-                'Authorization': `Bearer ${PAYSTACK_SECRET}`,
-                'Content-Type': 'application/json'
-            },
-            timeout: 10000
-        });
-        res.json({ status: 'success', data: response.data.data });
-    } catch (error: any) {
-        const errDetails = error.response?.data || error.message;
-        res.status(500).json({ 
-            status: 'error', 
-            message: "Identity Verification Fault", 
-            details: errDetails 
-        });
+        res.status(500).json({ status: 'error', message: "Gateway Fail" });
     }
 });
 
