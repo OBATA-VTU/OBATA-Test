@@ -1,5 +1,5 @@
 import React, { PropsWithChildren } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ServiceProvider } from './contexts/ServiceContext';
@@ -19,6 +19,7 @@ import { ProfilePage } from './components/SecondaryPages';
 import { HistoryPage } from './components/HistoryPage';
 import { AdminPanel } from './components/AdminPanel';
 import { PaymentVerificationPage } from './pages/PaymentVerificationPage';
+import { PricingPage } from './components/PricingPage'; // Added import
 
 const ProtectedRoute = ({ children }: PropsWithChildren) => {
     const { currentUser, loading } = useAuth();
@@ -32,6 +33,25 @@ const AdminRoute = ({ children }: PropsWithChildren) => {
      return currentUser ? <>{children}</> : <Navigate to="/dashboard" />;
 };
 
+// Wrapper for Landing Page to pass navigate
+const LandingWrapper = () => {
+    const navigate = useNavigate();
+    return (
+        <LandingPage 
+            onGetStarted={() => navigate('/auth')} 
+            onNavigate={(page) => {
+                 if (page === 'PRICING_PUBLIC') navigate('/pricing');
+            }} 
+        />
+    );
+};
+
+// Wrapper for Auth Page to pass navigation
+const AuthWrapper = () => {
+    const navigate = useNavigate();
+    return <AuthPage onSuccess={() => navigate('/dashboard')} />;
+}
+
 const App = () => {
   return (
     <ErrorBoundary>
@@ -42,8 +62,9 @@ const App = () => {
               <Toaster position="top-center" />
               <Routes>
                 {/* Public Routes */}
-                <Route path="/" element={<LandingPage onGetStarted={() => window.location.href='/auth'} onNavigate={() => {}} />} />
-                <Route path="/auth" element={<AuthPage onSuccess={() => window.location.href='/dashboard'} />} />
+                <Route path="/" element={<LandingWrapper />} />
+                <Route path="/auth" element={<AuthWrapper />} />
+                <Route path="/pricing" element={<Layout><PricingPage /></Layout>} />
                 <Route path="/verify-payment" element={<PaymentVerificationPage />} />
 
                 {/* Protected Dashboard Routes */}

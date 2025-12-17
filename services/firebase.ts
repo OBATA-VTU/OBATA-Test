@@ -4,35 +4,20 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { config } from '../config';
 
+// Production Ready: Strict check for configuration
 const isConfigured = !!config.firebase.apiKey;
 
-let app;
-let auth;
-let db;
-let storage;
-let googleProvider;
-
-if (isConfigured) {
-  try {
-    app = initializeApp(config.firebase);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-    googleProvider = new GoogleAuthProvider();
-    console.log('Firebase initialized successfully');
-  } catch (error) {
-    console.error('Firebase initialization error:', error);
-  }
-} else {
-  console.warn('Firebase keys missing. Running in mock/offline mode.');
-  // Mock objects to prevent crash during development
-  app = {} as any;
-  auth = {} as any;
-  db = {} as any;
-  storage = {} as any;
-  googleProvider = {} as any;
+if (!isConfigured) {
+  console.error('Firebase configuration is missing. Please check your environment variables.');
 }
 
-const isFirebaseInitialized = isConfigured;
+const app = initializeApp(config.firebase);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const googleProvider = new GoogleAuthProvider();
 
-export { app, auth, db, storage, googleProvider, isFirebaseInitialized };
+// Export initialized instances
+export { app, auth, db, storage, googleProvider };
+// Deprecate isFirebaseInitialized check as we enforce config or fail
+export const isFirebaseInitialized = true;

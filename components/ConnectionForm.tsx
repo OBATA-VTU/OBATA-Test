@@ -7,6 +7,10 @@ interface ConnectionFormProps {
   onSubmit: (config: ApiConfig) => void;
   isLoading: boolean;
   initialService?: string;
+  // Dynamic Props for Data
+  dataPlans?: any[];
+  cablePlans?: any[];
+  electricityProviders?: any[];
 }
 
 type ServiceType = 'AIRTIME' | 'DATA' | 'CABLE' | 'ELECTRICITY' | 'EDUCATION' | 'BALANCE' | 'TRANSACTION';
@@ -21,7 +25,6 @@ const getEnv = (key: string) => {
   }
 };
 
-// Configuration from Env Vars
 const BASE_URL = getEnv('VITE_INLOMAX_BASE_URL') || 'https://inlomax.com/api';
 const API_KEY = getEnv('VITE_INLOMAX_API_KEY') || '';
 const USE_PROXY = true;
@@ -33,54 +36,14 @@ const NETWORKS = [
   { id: '4', name: '9MOBILE', color: 'bg-green-700' },
 ];
 
-const DATA_PLANS: Record<string, { id: string; name: string; price: string; validity?: string }[]> = {
-  '1': [
-    { id: '202', name: '1GB + 3 mins', price: '488', validity: 'Daily' },
-    { id: '203', name: '2.5GB', price: '738', validity: 'Daily' },
-    { id: '98', name: '1GB (SME)', price: '590', validity: '30 Days' },
-    { id: '16', name: '1GB (CG)', price: '640', validity: '30 Days' },
-    { id: '17', name: '2GB (CG)', price: '1360', validity: '30 Days' },
-    { id: '18', name: '3GB (CG)', price: '1650', validity: '30 Days' },
-    { id: '19', name: '5GB (CG)', price: '2350', validity: '30 Days' },
-  ],
-  '3': [
-    { id: '36', name: '1GB (CG)', price: '430', validity: '30 Days' },
-    { id: '37', name: '2GB (CG)', price: '860', validity: '30 Days' },
-    { id: '38', name: '3GB (CG)', price: '1290', validity: '30 Days' },
-  ],
-  '2': [
-     { id: '331', name: '1GB', price: '789', validity: '7 Days' },
-     { id: '300', name: '2GB', price: '1479', validity: '30 Days' },
-  ],
-  '4': [],
-  '5': []
-};
-
-const CABLE_PLANS = [
-  { id: '101', name: 'Startimes Basic - ₦4000', provider: 'STARTIMES' },
-  { id: '102', name: 'Startimes Smart - ₦5100', provider: 'STARTIMES' },
-  { id: '90', name: 'DSTV Padi - ₦4400', provider: 'DSTV' },
-  { id: '91', name: 'DSTV Yanga - ₦6000', provider: 'DSTV' },
-  { id: '94', name: 'GOTV Smallie - ₦1900', provider: 'GOTV' },
-  { id: '97', name: 'GOTV Jinja - ₦3900', provider: 'GOTV' },
-];
-
-const ELECTRICITY_DISCOS = [
-  { id: '1', name: 'Ikeja Electricity (IKEDC)' },
-  { id: '2', name: 'Eko Electricity (EKEDC)' },
-  { id: '3', name: 'Kano Electricity (KEDCO)' },
-  { id: '4', name: 'Port Harcourt Electricity (PHED)' },
-  { id: '8', name: 'Abuja Electricity (AEDC)' },
-  { id: '6', name: 'Ibadan Electricity (IBEDC)' },
-];
-
-const EXAM_TYPES = [
-  { id: '1', name: 'WAEC - ₦3380' },
-  { id: '2', name: 'NECO - ₦1300' },
-  { id: '3', name: 'NABTEB - ₦900' },
-];
-
-export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoading, initialService }) => {
+export const ConnectionForm: React.FC<ConnectionFormProps> = ({ 
+    onSubmit, 
+    isLoading, 
+    initialService,
+    dataPlans = [],
+    cablePlans = [],
+    electricityProviders = []
+}) => {
   const [service, setService] = useState<ServiceType>((initialService as ServiceType) || 'AIRTIME');
   
   useEffect(() => {
@@ -93,7 +56,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
   const [amount, setAmount] = useState('');
   const [planId, setPlanId] = useState('');
   
-  const [cablePlanId, setCablePlanId] = useState(CABLE_PLANS[0].id);
+  const [cablePlanId, setCablePlanId] = useState('');
   const [iucNumber, setIucNumber] = useState('');
   const [validatedName, setValidatedName] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -103,9 +66,6 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
   const [meterNumber, setMeterNumber] = useState('');
   const [meterType, setMeterType] = useState('1'); 
 
-  const [examId, setExamId] = useState('1');
-  const [quantity, setQuantity] = useState('1');
-
   // New Fields for Query
   const [txnReference, setTxnReference] = useState('');
 
@@ -113,6 +73,15 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
     setValidatedName(null);
     setValidationError(null);
   }, [iucNumber, meterNumber, meterType, discoId, service]);
+
+  // Filter plans based on selected network
+  const filteredDataPlans = dataPlans.filter(p => {
+      if(networkId === '1') return p.provider === 'MTN';
+      if(networkId === '2') return p.provider === 'AIRTEL';
+      if(networkId === '3') return p.provider === 'GLO';
+      if(networkId === '4') return p.provider === '9MOBILE';
+      return false;
+  });
 
   const getHeaders = (endpointType: 'standard' | 'purchase_utility'): KeyValuePair[] => {
     const commonHeaders = [
@@ -163,19 +132,8 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
       });
       
       let responseData = res.data;
-
       if (typeof responseData === 'string') {
-        try {
-           responseData = JSON.parse(responseData);
-        } catch (e) {
-           const firstOpen = responseData.indexOf('{');
-           const lastClose = responseData.lastIndexOf('}');
-           if (firstOpen !== -1 && lastClose !== -1) {
-             try {
-                responseData = JSON.parse(responseData.substring(firstOpen, lastClose + 1));
-             } catch (e2) {}
-           }
-        }
+        try { responseData = JSON.parse(responseData); } catch (e) {}
       }
 
       if ((res.success || res.status === 200) && responseData && responseData.status === 'success') {
@@ -232,13 +190,6 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
           amount: Number(amount)
         };
         break;
-      case 'EDUCATION':
-        endpoint = '/education';
-        bodyObj = {
-          serviceID: examId,
-          quantity: Number(quantity)
-        };
-        break;
       case 'BALANCE':
         endpoint = '/balance';
         method = 'GET';
@@ -264,20 +215,10 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
     if (service === 'DATA') return phone.length >= 10 && planId;
     if (service === 'CABLE') return iucNumber.length >= 10 && cablePlanId && validatedName; 
     if (service === 'ELECTRICITY') return meterNumber.length >= 10 && amount && validatedName; 
-    if (service === 'EDUCATION') return quantity;
     if (service === 'TRANSACTION') return txnReference;
     if (service === 'BALANCE') return true;
     return false;
   };
-
-  if (!API_KEY) {
-    return (
-      <div className="bg-red-900/20 border border-red-500/50 p-6 rounded-2xl text-center">
-        <h3 className="text-red-500 font-bold mb-2">Configuration Warning</h3>
-        <p className="text-slate-400 text-sm">VITE_INLOMAX_API_KEY environment variable is not set. API calls will fail.</p>
-      </div>
-    );
-  }
 
   // Network Selection Component
   const NetworkSelector = ({ selected, onSelect }: { selected: string, onSelect: (id: string) => void }) => (
@@ -333,11 +274,11 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
                             className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500 appearance-none"
                         >
                             <option value="">-- Select Data Bundle --</option>
-                            {DATA_PLANS[networkId]?.map(plan => (
-                            <option key={plan.id} value={plan.id}>
+                            {filteredDataPlans.map(plan => (
+                            <option key={plan.id} value={plan.apiId}>
                                 {plan.name} - ₦{plan.price} ({plan.validity})
                             </option>
-                            )) || <option disabled>No plans available</option>}
+                            ))}
                         </select>
                     </div>
                     <div>
@@ -353,8 +294,9 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
                 <div>
                    <label className="text-sm font-medium text-slate-300 mb-1.5 block">Select Package</label>
                    <select value={cablePlanId} onChange={e => setCablePlanId(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500">
-                      {CABLE_PLANS.map(p => (
-                        <option key={p.id} value={p.id}>{p.provider} - {p.name}</option>
+                      <option value="">-- Select --</option>
+                      {cablePlans.map(p => (
+                        <option key={p.id} value={p.apiId}>{p.provider} - {p.name} (₦{p.price})</option>
                       ))}
                    </select>
                 </div>
@@ -398,7 +340,7 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
                 <div>
                   <label className="text-sm font-medium text-slate-300 mb-1.5 block">Disco Provider</label>
                   <select value={discoId} onChange={e => setDiscoId(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500">
-                    {ELECTRICITY_DISCOS.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    {electricityProviders.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -445,21 +387,6 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({ onSubmit, isLoad
                       <span>{validationError}</span>
                     </div>
                   )}
-                </div>
-             </div>
-          )}
-
-          {service === 'EDUCATION' && (
-             <div className="space-y-5 animate-fade-in-up">
-                <div>
-                  <label className="text-sm font-medium text-slate-300 mb-1.5 block">Exam Body</label>
-                  <select value={examId} onChange={e => setExamId(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500">
-                    {EXAM_TYPES.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-300 mb-1.5 block">Quantity</label>
-                  <input type="number" min="1" max="10" value={quantity} onChange={e => setQuantity(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white focus:border-blue-500" />
                 </div>
              </div>
           )}

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { verifyPayment } from '../services/api';
 
 export const PaymentVerificationPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -14,12 +15,22 @@ export const PaymentVerificationPage: React.FC = () => {
           return;
       }
       
-      // Simulate backend verification
-      setTimeout(() => {
-          // In real app, call /api/verify?ref=...
-          setStatus('SUCCESS');
-          setTimeout(() => navigate('/dashboard'), 3000);
-      }, 2000);
+      const checkPayment = async () => {
+          try {
+              const res = await verifyPayment(reference);
+              if (res.success && res.data.status === 'success') {
+                  setStatus('SUCCESS');
+                  setTimeout(() => navigate('/dashboard'), 3000);
+              } else {
+                  setStatus('FAILED');
+              }
+          } catch (e) {
+              console.error(e);
+              setStatus('FAILED');
+          }
+      };
+
+      checkPayment();
   }, [reference, navigate]);
 
   return (

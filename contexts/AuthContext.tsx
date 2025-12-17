@@ -11,6 +11,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   isAdmin: boolean;
   isReseller: boolean;
+  refreshProfile: () => Promise<void>; // Added for manual refresh if needed, though listener handles it
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,31 +34,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       
       if (user) {
+        // Set up real-time listener
         const userRef = doc(db, 'users', user.uid);
-        const unsubDoc = onSnapshot(userRef, (docSnap) => {
+        const unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data() as UserProfile);
           } else {
+            console.error("User profile document missing for UID:", user.uid);
             setUserProfile(null);
           }
           setLoading(false);
+        }, (error) => {
+          console.error("Error fetching user profile:", error);
+          setLoading(false);
         });
-        return () => unsubDoc();
+
+        return () => unsubscribeSnapshot();
       } else {
         setUserProfile(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
 
   const logout = async () => {
-    await signOut(auth);
+    try {
+        await signOut(auth);
+    } catch (error) {
+        console.error("Logout failed:", error);
+    }
+  };
+
+  // Helper for manual refresh if strictly necessary (e.g. after a cloud function update that might not reflect immediately in local cache)
+  const refreshProfile = async () => {
+      // Listener handles updates automatically, this is mostly a no-op placeholder or for forcing a re-fetch if we were not using listeners
+      // For onSnapshot, we don't strictly need this, but we keep it for interface compatibility
+      return Promise.resolve();
   };
 
   return (
@@ -67,7 +85,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading, 
         logout,
         isAdmin: userProfile?.role === 'admin',
-        isReseller: userProfile?.role === 'reseller' || userProfile?.role === 'admin'
+        isReseller: userProfile?.role === 'reseller' || userProfile?.role === 'admin',
+        refreshProfile
     }}>
       {children}
     </AuthContext.Provider>

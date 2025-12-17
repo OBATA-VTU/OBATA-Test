@@ -3,43 +3,31 @@ import { Search, Smartphone, Wifi, Tv, Zap, CheckCircle, Loader2 } from 'lucide-
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
-// Fallback data if database is empty
-const DEFAULT_PRICES = {
-    DATA: [
-        { id: '101', network: 'MTN', plan: '1.0 GB SME', validity: '30 Days', user: 250, reseller: 215 },
-        { id: '102', network: 'MTN', plan: '2.0 GB SME', validity: '30 Days', user: 500, reseller: 430 },
-        { id: '201', network: 'AIRTEL', plan: '1.0 GB CG', validity: '30 Days', user: 240, reseller: 210 },
-        { id: '301', network: 'GLO', plan: '1.0 GB CG', validity: '30 Days', user: 230, reseller: 200 },
-    ],
-    CABLE: [
-        { id: 'GOTV-1', provider: 'GOTV', plan: 'Smallie', validity: 'Monthly', user: 1900, reseller: 1900 },
-        { id: 'DSTV-1', provider: 'DSTV', plan: 'Padi', validity: 'Monthly', user: 4400, reseller: 4400 },
-    ],
-    EDUCATION: [
-        { id: 'WAEC', provider: 'WAEC', plan: 'Result Checker', validity: '5 Uses', user: 3500, reseller: 3300 },
-    ]
-};
-
 export const PricingPage: React.FC = () => {
     const [activeCategory, setActiveCategory] = useState<'DATA' | 'CABLE' | 'EDUCATION'>('DATA');
     const [searchTerm, setSearchTerm] = useState('');
-    const [prices, setPrices] = useState<any>(DEFAULT_PRICES);
+    const [prices, setPrices] = useState<any>({});
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchPrices = async () => {
             try {
-                // In a real scenario, this fetches from a 'pricing' collection in Firestore
-                // For now, we simulate a fetch delay to show dynamic loading behavior
-                // or actually check if collection exists
                 const snapshot = await getDocs(collection(db, 'pricing'));
                 if (!snapshot.empty) {
-                    // Logic to parse Firestore data into structure
-                    // For now, using default to ensure UI renders
+                    const data: any = { DATA: [], CABLE: [], EDUCATION: [] };
+                    snapshot.forEach(doc => {
+                        const plan = doc.data();
+                        const cat = plan.category || 'DATA';
+                        if(data[cat]) data[cat].push({ id: doc.id, ...plan });
+                    });
+                    setPrices(data);
+                } else {
+                    // Fallback to empty state structure if nothing found to avoid crashes
+                    setPrices({ DATA: [], CABLE: [], EDUCATION: [] });
                 }
-                setTimeout(() => setLoading(false), 800);
             } catch (e) {
                 console.error("Error fetching prices", e);
+            } finally {
                 setLoading(false);
             }
         };
@@ -124,10 +112,10 @@ export const PricingPage: React.FC = () => {
                                 <tr key={item.id} className="hover:bg-slate-800/50 transition-colors">
                                     <td className="p-5 font-mono text-xs text-slate-500">{item.id}</td>
                                     <td className="p-5 font-bold">{item.network || item.provider}</td>
-                                    <td className="p-5 font-medium">{item.plan}</td>
+                                    <td className="p-5 font-medium">{item.plan || item.name}</td>
                                     <td className="p-5 text-slate-400">{item.validity}</td>
-                                    <td className="p-5 text-right font-bold text-white">₦{item.user}</td>
-                                    <td className="p-5 text-right font-bold text-amber-500">₦{item.reseller}</td>
+                                    <td className="p-5 text-right font-bold text-white">₦{item.user || item.price}</td>
+                                    <td className="p-5 text-right font-bold text-amber-500">₦{item.reseller || item.resellerPrice}</td>
                                 </tr>
                             ))}
                             {filteredData.length === 0 && (

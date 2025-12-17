@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { Smartphone, Zap, Wifi, Tv, CheckCircle, ArrowRight, Star, Users, HelpCircle, ChevronDown, CreditCard, ShieldCheck, PlayCircle, BarChart3, LogIn, Home } from 'lucide-react';
+import { Zap, CheckCircle, ArrowRight, Star, Users, Shield, Smartphone, Globe, CreditCard, ChevronDown, Menu, X, TrendingUp } from 'lucide-react';
 import { Logo } from './Logo';
 import { PageView, DashboardTab } from '../types';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 interface LandingPageProps {
   onGetStarted: () => void;
@@ -27,122 +28,89 @@ const useReveal = () => {
   }, []);
 };
 
-// Helper Components
-const ServiceCard = ({ delay, icon, title, desc }: { delay: string; icon: React.ReactNode; title: string; desc: string }) => (
-  <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 hover:border-blue-500/50 transition-all hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-900/20 reveal" style={{ transitionDelay: `${delay}ms` }}>
-    <div className="bg-slate-950 w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg border border-slate-800">
-      {icon}
-    </div>
-    <h3 className="text-xl font-bold mb-3">{title}</h3>
-    <p className="text-slate-400 leading-relaxed">{desc}</p>
-  </div>
-);
-
-const TestimonialCard = ({ name, role, text, img }: { name: string; role: string; text: string; img: string }) => (
-  <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 hover:border-slate-700 transition-colors reveal">
-    <div className="flex items-center space-x-4 mb-6">
-      <img src={img} alt={name} className="w-12 h-12 rounded-full object-cover ring-2 ring-slate-800" />
-      <div>
-        <h4 className="font-bold text-white">{name}</h4>
-        <p className="text-sm text-slate-500">{role}</p>
-      </div>
-    </div>
-    <div className="mb-4">
-      <div className="flex text-amber-500 space-x-1">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Star key={i} className="w-4 h-4 fill-current" />
-        ))}
-      </div>
-    </div>
-    <p className="text-slate-400 leading-relaxed italic">"{text}"</p>
-  </div>
-);
-
-const FaqItem = ({ question, answer }: { question: string; answer: string }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden transition-all">
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-6 text-left"
-      >
-        <span className="font-bold text-lg text-white">{question}</span>
-        <ChevronDown className={`w-5 h-5 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
-      {isOpen && (
-        <div className="px-6 pb-6 text-slate-400 leading-relaxed border-t border-slate-800/50 pt-4">
-          {answer}
-        </div>
-      )}
-    </div>
-  );
-};
-
-export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNavigate, onDashboardNavigate }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNavigate }) => {
   useReveal();
   const { currentUser, userProfile } = useAuth();
+  const navigate = useNavigate();
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
 
   const scrollToSection = (id: string) => {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
     }
+    setMobileMenuOpen(false);
   };
 
-  const handleDashboardClick = () => {
-      onGetStarted(); // This now resets to Dashboard Overview via App.tsx
-  };
-
-  const handlePricingClick = () => {
-      onNavigate('PRICING_PUBLIC');
+  const handleAuthAction = () => {
+      if (currentUser) {
+          navigate('/dashboard');
+      } else {
+          navigate('/auth');
+      }
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white overflow-hidden font-sans selection:bg-blue-500 selection:text-white">
+    <div className="min-h-screen bg-slate-950 text-white font-sans selection:bg-blue-500 selection:text-white w-full overflow-x-hidden">
       
       {/* Navigation */}
       <nav className="fixed w-full z-50 bg-slate-950/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onNavigate('LANDING')}>
+            {/* Logo */}
+            <div className="flex items-center space-x-3 cursor-pointer" onClick={() => navigate('/')}>
               <Logo className="h-10 w-10" />
               <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-amber-400">
                 OBATA VTU
               </span>
             </div>
             
+            {/* Desktop Menu */}
             <div className="hidden md:flex items-center space-x-8 text-sm font-semibold text-slate-300">
-              <button onClick={() => onNavigate('LANDING')} className="hover:text-blue-400 transition-colors flex items-center"><Home className="w-4 h-4 mr-1"/> Home</button>
-              <button onClick={handlePricingClick} className="hover:text-blue-400 transition-colors">Prices</button>
+              <button onClick={() => navigate('/')} className="hover:text-blue-400 transition-colors flex items-center">Home</button>
+              <button onClick={() => { onNavigate('PRICING_PUBLIC'); navigate('/#pricing'); }} className="hover:text-blue-400 transition-colors">Prices</button>
               <button onClick={() => scrollToSection('features')} className="hover:text-blue-400 transition-colors">Features</button>
               <button onClick={() => onNavigate('SUPPORT')} className="hover:text-blue-400 transition-colors">Support</button>
               
               <button 
-                onClick={handleDashboardClick}
+                onClick={handleAuthAction}
                 className="flex items-center bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2.5 rounded-full transition-all hover:shadow-lg font-bold border border-emerald-500/50"
               >
-                <Zap className="w-4 h-4 mr-2 fill-current" /> {currentUser ? 'Dashboard' : 'Login / Register'}
+                <Zap className="w-4 h-4 mr-2 fill-current" /> {currentUser ? 'Go to Dashboard' : 'Login / Register'}
               </button>
             </div>
-             <button 
-                onClick={handleDashboardClick}
-                className="md:hidden bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-bold"
-              >
-                {currentUser ? 'Dashboard' : 'Login'}
-              </button>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center">
+                 <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-slate-300 hover:text-white p-2">
+                     {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+                 </button>
+            </div>
           </div>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+            <div className="md:hidden bg-slate-900 border-b border-slate-800 animate-fade-in">
+                <div className="px-4 pt-2 pb-4 space-y-1">
+                    <button onClick={() => { navigate('/'); setMobileMenuOpen(false); }} className="block w-full text-left px-3 py-3 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800">Home</button>
+                    <button onClick={() => { onNavigate('PRICING_PUBLIC'); setMobileMenuOpen(false); }} className="block w-full text-left px-3 py-3 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800">Prices</button>
+                    <button onClick={() => scrollToSection('features')} className="block w-full text-left px-3 py-3 rounded-md text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800">Features</button>
+                    <button onClick={handleAuthAction} className="block w-full text-left px-3 py-3 rounded-md text-base font-bold text-emerald-400 hover:bg-slate-800">
+                        {currentUser ? 'Dashboard' : 'Login / Register'}
+                    </button>
+                </div>
+            </div>
+        )}
       </nav>
 
       {/* Hero Section */}
-      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        {/* Background Elements */}
+      <section className="relative pt-32 pb-20 lg:pt-48 lg:pb-32 px-4 sm:px-6 lg:px-8 overflow-hidden w-full">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-blue-600/20 rounded-full blur-[120px] -z-10 animate-pulse-glow"></div>
         <div className="absolute bottom-0 right-0 w-[600px] h-[400px] bg-amber-500/10 rounded-full blur-[100px] -z-10"></div>
         
         <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
           <div className="lg:w-1/2 text-center lg:text-left z-10 reveal">
-             
              {currentUser ? (
                  <div className="inline-flex items-center px-4 py-2 rounded-full bg-emerald-900/30 border border-emerald-500/30 text-emerald-300 text-sm font-semibold mb-8 animate-fade-in-up">
                     <span className="relative flex h-2 w-2 mr-2">
@@ -157,7 +125,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                     </span>
-                    The #1 VTU Platform in Nigeria
+                    #1 VTU Platform in Nigeria
                  </div>
              )}
 
@@ -174,13 +142,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
             
             <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start">
               <button 
-                onClick={handleDashboardClick}
+                onClick={handleAuthAction}
                 className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-bold text-lg transition-all hover:-translate-y-1 shadow-xl shadow-blue-600/30 flex items-center justify-center"
               >
                 {currentUser ? 'Go to Dashboard' : 'Create Free Account'} <ArrowRight className="ml-2 w-5 h-5" />
               </button>
               <button 
-                 onClick={handlePricingClick}
+                 onClick={() => { onNavigate('PRICING_PUBLIC'); }}
                  className="w-full sm:w-auto px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-lg transition-all border border-slate-700 hover:border-blue-500/50"
               >
                 View Price List
@@ -196,7 +164,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
                <p>Trusted by <span className="text-white font-bold">5,000+</span> vendors</p>
             </div>
           </div>
-          {/* ... (Hero Image remains same) ... */}
+          
            <div className="lg:w-1/2 relative reveal">
              <div className="relative mx-auto w-full max-w-[500px]">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-amber-500 rounded-2xl blur opacity-30 animate-pulse"></div>
@@ -220,7 +188,192 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onNaviga
         </div>
       </section>
 
-      {/* ... (Rest of sections remain mostly same) ... */}
+      {/* Stats Section */}
+      <section className="py-12 bg-slate-900 border-y border-slate-800">
+          <div className="max-w-7xl mx-auto px-4 grid grid-cols-2 md:grid-cols-4 gap-8">
+              <div className="text-center">
+                  <h3 className="text-4xl font-bold text-white mb-2">50k+</h3>
+                  <p className="text-slate-400 text-sm">Active Users</p>
+              </div>
+              <div className="text-center">
+                  <h3 className="text-4xl font-bold text-blue-400 mb-2">1M+</h3>
+                  <p className="text-slate-400 text-sm">Transactions</p>
+              </div>
+              <div className="text-center">
+                  <h3 className="text-4xl font-bold text-amber-400 mb-2">99.9%</h3>
+                  <p className="text-slate-400 text-sm">Uptime</p>
+              </div>
+              <div className="text-center">
+                  <h3 className="text-4xl font-bold text-emerald-400 mb-2">24/7</h3>
+                  <p className="text-slate-400 text-sm">Support</p>
+              </div>
+          </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-24 bg-slate-950">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-16">
+                  <span className="text-blue-500 font-bold tracking-widest text-xs uppercase mb-2 block">Process</span>
+                  <h2 className="text-3xl md:text-5xl font-bold mb-4">How It Works</h2>
+                  <p className="text-slate-400 max-w-2xl mx-auto">Get started in 3 simple steps.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                  <div className="relative text-center group">
+                      <div className="w-20 h-20 bg-blue-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-blue-600/30 group-hover:bg-blue-600 group-hover:text-white transition-all text-blue-500">
+                          <Users className="w-10 h-10" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">1. Create Account</h3>
+                      <p className="text-slate-400 text-sm">Sign up for free in less than 2 minutes. No paperwork required.</p>
+                  </div>
+                  <div className="relative text-center group">
+                      <div className="w-20 h-20 bg-amber-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-amber-600/30 group-hover:bg-amber-600 group-hover:text-white transition-all text-amber-500">
+                          <CreditCard className="w-10 h-10" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">2. Fund Wallet</h3>
+                      <p className="text-slate-400 text-sm">Transfer money to your dedicated wallet account instantly.</p>
+                  </div>
+                  <div className="relative text-center group">
+                      <div className="w-20 h-20 bg-emerald-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6 border border-emerald-600/30 group-hover:bg-emerald-600 group-hover:text-white transition-all text-emerald-500">
+                          <Smartphone className="w-10 h-10" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-2">3. Start Transacting</h3>
+                      <p className="text-slate-400 text-sm">Buy airtime, data, and pay bills at the cheapest rates.</p>
+                  </div>
+              </div>
+          </div>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-24 bg-slate-900/50 border-y border-slate-800">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-16">
+                  <span className="text-emerald-500 font-bold tracking-widest text-xs uppercase mb-2 block">Why Us</span>
+                  <h2 className="text-3xl md:text-5xl font-bold mb-4">Why Choose OBATA?</h2>
+                  <p className="text-slate-400 max-w-2xl mx-auto">We've built a platform that puts speed, security, and savings first.</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  <div className="bg-slate-950 p-8 rounded-3xl border border-slate-800 hover:border-blue-500/50 transition-all hover:translate-y-[-5px]">
+                      <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-6">
+                          <Zap className="w-6 h-6 text-blue-500" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Instant Delivery</h3>
+                      <p className="text-slate-400">Our automated system ensures your airtime and data are delivered in seconds.</p>
+                  </div>
+                   <div className="bg-slate-950 p-8 rounded-3xl border border-slate-800 hover:border-amber-500/50 transition-all hover:translate-y-[-5px]">
+                      <div className="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center mb-6">
+                          <Star className="w-6 h-6 text-amber-500" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Best Prices</h3>
+                      <p className="text-slate-400">Enjoy wholesale rates on all services. Resellers get even bigger discounts.</p>
+                  </div>
+                   <div className="bg-slate-950 p-8 rounded-3xl border border-slate-800 hover:border-emerald-500/50 transition-all hover:translate-y-[-5px]">
+                      <div className="w-12 h-12 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-6">
+                          <Shield className="w-6 h-6 text-emerald-500" />
+                      </div>
+                      <h3 className="text-xl font-bold text-white mb-3">Secure Transactions</h3>
+                      <p className="text-slate-400">Your funds and data are protected with bank-grade security protocols.</p>
+                  </div>
+              </div>
+          </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-24 bg-slate-950">
+          <div className="max-w-7xl mx-auto px-4">
+              <div className="text-center mb-16">
+                  <h2 className="text-3xl font-bold text-white mb-4">What our users say</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                  {[
+                      { name: 'Emmanuel O.', role: 'Data Reseller', text: 'Obata VTU has the best data rates in the market. My business has grown 3x since I switched.' },
+                      { name: 'Sarah K.', role: 'Student', text: 'Fast and reliable. I use it for my midnight sub every time. Never failed me once.' },
+                      { name: 'David A.', role: 'Entrepreneur', text: 'The API response time is incredible. Integrated it into my app in less than 2 hours.' }
+                  ].map((t, i) => (
+                      <div key={i} className="bg-slate-900 p-8 rounded-2xl border border-slate-800 relative">
+                          <div className="flex text-amber-500 mb-4">
+                              <Star className="w-4 h-4 fill-current" />
+                              <Star className="w-4 h-4 fill-current" />
+                              <Star className="w-4 h-4 fill-current" />
+                              <Star className="w-4 h-4 fill-current" />
+                              <Star className="w-4 h-4 fill-current" />
+                          </div>
+                          <p className="text-slate-300 mb-6 italic">"{t.text}"</p>
+                          <div>
+                              <p className="text-white font-bold">{t.name}</p>
+                              <p className="text-slate-500 text-xs">{t.role}</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+          </div>
+      </section>
+
+      {/* CTA */}
+      <section className="py-20 relative overflow-hidden">
+          <div className="absolute inset-0 bg-blue-600/10"></div>
+          <div className="max-w-4xl mx-auto px-4 text-center relative z-10">
+              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">Ready to save on every top-up?</h2>
+              <p className="text-xl text-slate-300 mb-10">Join thousands of satisfied users today and experience the speed.</p>
+              <button 
+                onClick={handleAuthAction}
+                className="bg-white text-blue-900 px-10 py-4 rounded-full font-bold text-lg hover:bg-slate-100 transition-all shadow-xl hover:scale-105"
+              >
+                  Create Free Account
+              </button>
+          </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-slate-900 border-t border-slate-800 pt-16 pb-8 w-full">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+            <div>
+                <div className="flex items-center space-x-2 mb-4">
+                    <Logo className="h-8 w-8" showRing={false} />
+                    <span className="text-xl font-bold text-white">OBATA VTU</span>
+                </div>
+                <p className="text-slate-500 text-sm leading-relaxed">
+                    The fastest and most reliable VTU platform in Nigeria. Airtime, Data, Cable TV, and Electricity payments made easy.
+                </p>
+            </div>
+            <div>
+                <h4 className="text-white font-bold mb-4">Quick Links</h4>
+                <ul className="space-y-2 text-slate-400 text-sm">
+                    <li><button onClick={() => navigate('/')} className="hover:text-white">Home</button></li>
+                    <li><button onClick={() => { onNavigate('PRICING_PUBLIC'); navigate('/#pricing'); }} className="hover:text-white">Pricing</button></li>
+                    <li><button onClick={() => handleAuthAction()} className="hover:text-white">Login</button></li>
+                    <li><button onClick={() => handleAuthAction()} className="hover:text-white">Register</button></li>
+                </ul>
+            </div>
+            <div>
+                <h4 className="text-white font-bold mb-4">Services</h4>
+                <ul className="space-y-2 text-slate-400 text-sm">
+                    <li>Buy Data</li>
+                    <li>Buy Airtime</li>
+                    <li>Cable Subscription</li>
+                    <li>Electricity Bills</li>
+                    <li>Airtime to Cash</li>
+                </ul>
+            </div>
+            <div>
+                <h4 className="text-white font-bold mb-4">Contact</h4>
+                <ul className="space-y-2 text-slate-400 text-sm">
+                    <li>support@obatavtu.com</li>
+                    <li>+234 800 000 0000</li>
+                    <li>Lagos, Nigeria</li>
+                </ul>
+            </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 border-t border-slate-800 pt-8 flex flex-col md:flex-row items-center justify-between text-slate-600 text-xs">
+          <span>&copy; {new Date().getFullYear()} OBATA VTU. All rights reserved.</span>
+          <div className="flex space-x-6 mt-4 md:mt-0">
+            <button className="hover:text-white transition-colors">Privacy Policy</button>
+            <button className="hover:text-white transition-colors">Terms of Service</button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };

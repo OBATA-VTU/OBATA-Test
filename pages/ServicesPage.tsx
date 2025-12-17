@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Smartphone, Wifi, Tv, Zap, Loader2, CheckCircle, Search } from 'lucide-react';
+import { Smartphone, Wifi, Tv, Zap, Loader2, CheckCircle, Search, ChevronRight } from 'lucide-react';
 import { useServices } from '../contexts/ServiceContext';
 import { useAuth } from '../contexts/AuthContext';
-import { buyAirtime, buyData, validateMeter, validateCable } from '../services/api';
+import { buyAirtime, buyData, buyCable, payElectricity, validateMeter, validateCable } from '../services/api';
 import { ConfirmationModal } from '../components/ConfirmationModal';
 import { TransactionPinModal } from '../components/TransactionPinModal';
 import { ReceiptModal } from '../components/ReceiptModal';
@@ -45,7 +45,6 @@ export const ServicesPage: React.FC = () => {
   }, [phone, serviceType, getNetworkId]);
 
   if (!serviceType) {
-      // Redirect to airtime by default or show menu
       useEffect(() => { navigate('/services/airtime'); }, []);
       return null;
   }
@@ -90,9 +89,10 @@ export const ServicesPage: React.FC = () => {
               res = await buyAirtime(network, Number(amount), phone, requestId);
           } else if (serviceType === 'data') {
               res = await buyData(selectedPlan.apiId, phone, requestId);
-          } else {
-              // Mock success for cable/power for now as structure is similar
-              res = { success: true, data: { message: "Transaction Successful", amount: amount || selectedPlan?.price, reference: requestId } };
+          } else if (serviceType === 'cable') {
+              res = await buyCable(selectedPlan.apiId, iuc, requestId);
+          } else if (serviceType === 'electricity') {
+              res = await payElectricity(disco, meterNum, Number(amount), '1', requestId);
           }
           setLastResponse(res);
       } catch (e: any) {
@@ -106,6 +106,7 @@ export const ServicesPage: React.FC = () => {
       if (serviceType === 'airtime') return [{ label: 'Network', value: network }, { label: 'Phone', value: phone }];
       if (serviceType === 'data') return [{ label: 'Plan', value: selectedPlan?.name }, { label: 'Phone', value: phone }];
       if (serviceType === 'electricity') return [{ label: 'Disco', value: disco }, { label: 'Meter', value: meterNum }, { label: 'Name', value: verifiedName }];
+      if (serviceType === 'cable') return [{ label: 'Provider', value: cableProvider }, { label: 'IUC', value: iuc }, { label: 'Name', value: verifiedName }];
       return [];
   };
 
@@ -272,6 +273,64 @@ export const ServicesPage: React.FC = () => {
                                 className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-lg font-bold"
                             />
                         </div>
+                    </>
+                )}
+
+                 {/* CABLE Specific */}
+                 {serviceType === 'cable' && (
+                    <>
+                         <div>
+                            <label className="text-slate-400 text-sm font-bold block mb-2">Cable Provider</label>
+                            <select 
+                                value={cableProvider}
+                                onChange={e => setCableProvider(e.target.value)}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white"
+                            >
+                                <option value="">-- Select Provider --</option>
+                                <option value="GOTV">GOTV</option>
+                                <option value="DSTV">DSTV</option>
+                                <option value="STARTIMES">STARTIMES</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-slate-400 text-sm font-bold block mb-2">Package / Plan</label>
+                            <select 
+                                onChange={(e) => {
+                                    const plan = cablePlans.find(p => p.id === e.target.value);
+                                    setSelectedPlan(plan);
+                                }}
+                                className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white"
+                            >
+                                <option value="">-- Select Package --</option>
+                                {cablePlans.filter(p => p.provider === cableProvider).map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} - ₦{p.price}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="flex gap-2 items-end">
+                            <div className="flex-1">
+                                <label className="text-slate-400 text-sm font-bold block mb-2">IUC / SmartCard Number</label>
+                                <input 
+                                    type="text" 
+                                    value={iuc}
+                                    onChange={e => setIuc(e.target.value)}
+                                    className="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white"
+                                />
+                            </div>
+                            <button 
+                                type="button"
+                                onClick={handleVerify}
+                                disabled={isValidating || !iuc}
+                                className="bg-slate-800 text-white px-6 py-4 rounded-xl font-bold h-[58px]"
+                            >
+                                {isValidating ? <Loader2 className="animate-spin" /> : 'Verify'}
+                            </button>
+                        </div>
+                        {verifiedName && (
+                            <div className="bg-green-900/20 border border-green-500/30 p-3 rounded-lg text-green-400 text-sm font-bold">
+                                {verifiedName}
+                            </div>
+                        )}
                     </>
                 )}
 

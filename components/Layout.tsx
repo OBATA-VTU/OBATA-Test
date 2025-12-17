@@ -4,7 +4,11 @@ import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { useAppData } from '../contexts/AppDataContext';
 
-export const Layout: React.FC = () => {
+interface LayoutProps {
+  children?: React.ReactNode;
+}
+
+export const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { theme } = useAppData();
 
   return (
@@ -16,7 +20,7 @@ export const Layout: React.FC = () => {
         
         <main className="flex-1 overflow-y-auto p-4 lg:p-8">
             <div className="max-w-7xl mx-auto pb-20">
-                <Outlet />
+                {children ? children : <Outlet />}
             </div>
         </main>
       </div>

@@ -73,6 +73,22 @@ export const buyData = async (planId: string, phone: string, requestId: string) 
   });
 };
 
+export const buyCable = async (planId: string, iucNumber: string, requestId: string) => {
+  return executeApiRequest({
+    url: `${BACKEND_URL}/vtu/cable`,
+    method: 'POST',
+    body: JSON.stringify({ plan_id: planId, iuc_number: iucNumber, request_id: requestId })
+  });
+};
+
+export const payElectricity = async (discoId: string, meterNumber: string, amount: number, meterType: string, requestId: string) => {
+  return executeApiRequest({
+    url: `${BACKEND_URL}/vtu/electricity`,
+    method: 'POST',
+    body: JSON.stringify({ disco_id: discoId, meter_number: meterNumber, amount, meter_type: meterType, request_id: requestId })
+  });
+};
+
 export const validateMeter = async (discoId: string, meterNumber: string, meterType: string) => {
   return executeApiRequest({
     url: `${BACKEND_URL}/vtu/verify/meter`,
@@ -89,6 +105,13 @@ export const validateCable = async (serviceId: string, iucNumber: string) => {
   });
 };
 
+export const verifyPayment = async (reference: string) => {
+  return executeApiRequest({
+    url: `${BACKEND_URL}/payment/verify/${reference}`,
+    method: 'GET'
+  });
+};
+
 export const syncAdminPlans = async () => {
     return executeApiRequest({
         url: `${BACKEND_URL}/admin/sync-plans`,
@@ -99,8 +122,7 @@ export const syncAdminPlans = async () => {
 export const uploadImageToImgBB = async (file: File): Promise<string> => {
   const formData = new FormData();
   formData.append('image', file);
-  // Direct call to ImgBB (Client-side key is acceptable for ImgBB as it's public upload)
-  // Ideally this should also go through backend to hide key, but keeping simple for file upload
+  // Hardcoded as requested
   const key = '6335530a0b22ceea3ae8c5699049bd5e'; 
   
   const res = await fetch(`https://api.imgbb.com/1/upload?key=${key}`, {

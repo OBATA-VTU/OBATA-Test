@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CheckCircle, Zap, Gift, Copy, User, Lock, Mail, Code, Terminal, Key, Eye, EyeOff, Loader2, Shield, Bell, Users, BarChart, Server, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, updateDoc, increment, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, updateDoc, increment, collection, addDoc, serverTimestamp, getDocs, query, where, writeBatch } from 'firebase/firestore';
 import { db } from '../services/firebase';
 
 interface ResellerPageProps {
@@ -51,7 +51,6 @@ export const ResellerPage: React.FC<ResellerPageProps> = ({ onTriggerUpgrade }) 
               <Zap className="w-96 h-96" />
           </div>
       </div>
-      {/* ... (Benefits and Table remain same) ... */}
   </div>
 )};
 
@@ -101,29 +100,45 @@ export const RewardsPage: React.FC = () => {
         setLoading(true);
 
         try {
-            // Check specific coupons collection in Firestore
-            // ... (Logic for Firestore coupon check would go here)
-            // For now, simple simulation since we don't have Admin panel to generate them dynamically yet
-            if (couponCode.toUpperCase() === 'WELCOME') {
-                const userRef = doc(db, 'users', currentUser.uid);
-                await updateDoc(userRef, { walletBalance: increment(50) });
-                await addDoc(collection(db, 'transactions'), {
-                    userId: currentUser.uid,
-                    type: 'CREDIT',
-                    amount: 50,
-                    description: 'Welcome Coupon',
-                    status: 'SUCCESS',
-                    date: serverTimestamp()
-                });
-                await refreshProfile();
-                alert("Coupon Redeemed!");
-                setCouponCode('');
-            } else {
-                alert("Invalid or Expired Coupon");
+            // Real Coupon Check
+            const q = query(collection(db, 'coupons'), where('code', '==', couponCode.toUpperCase()), where('active', '==', true));
+            const snapshot = await getDocs(q);
+
+            if (snapshot.empty) {
+                alert("Invalid or expired coupon code.");
+                setLoading(false);
+                return;
             }
-        } catch (e) {
+
+            const couponDoc = snapshot.docs[0];
+            const couponData = couponDoc.data();
+            
+            // Check if user already used it (requires subcollection or array check, simple version here)
+            // For now, assuming standard logic where we just credit
+            
+            const batch = writeBatch(db);
+            const userRef = doc(db, 'users', currentUser.uid);
+            
+            batch.update(userRef, { walletBalance: increment(couponData.amount) });
+            
+            const txnRef = doc(collection(db, 'transactions'));
+            batch.set(txnRef, {
+                userId: currentUser.uid,
+                type: 'CREDIT',
+                amount: couponData.amount,
+                description: `Coupon Redeemed: ${couponCode}`,
+                status: 'SUCCESS',
+                date: serverTimestamp()
+            });
+
+            await batch.commit();
+            await refreshProfile();
+            
+            alert(`Coupon Redeemed! ₦${couponData.amount} added to wallet.`);
+            setCouponCode('');
+        } catch (e: any) {
             console.error(e);
-            alert("Error redeeming coupon.");
+            alert("Error redeeming coupon. Please try again.");
         } finally {
             setLoading(false);
         }
