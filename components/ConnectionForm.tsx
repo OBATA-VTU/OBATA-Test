@@ -110,7 +110,9 @@ export const ConnectionForm: React.FC<ConnectionFormProps> = ({
                           disco?.name?.toLowerCase()?.includes('eko') ? 'eko-electric' :
                           disco?.name?.toLowerCase()?.includes('abuja') ? 'abuja-electric' : 'jos-electric';
         
-        res = await validateMeter(serviceID, meterNumber, meterType === '1' ? 'prepaid' : 'postpaid');
+        // Fixed: Argument of type 'string' is not assignable to parameter of type 'number'.
+        // meterType is '1' for prepaid and '2' for postpaid.
+        res = await validateMeter(serviceID, meterNumber, parseInt(meterType));
       }
 
       if (res?.success && (res.data?.status === 'success' || res.data?.customerName)) {

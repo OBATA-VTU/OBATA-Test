@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, Smartphone, Wifi, Tv, Zap, Plus, ArrowRight, Clock, Eye, EyeOff, TrendingUp, ArrowUpRight } from 'lucide-react';
+import { Wallet, Smartphone, Wifi, Tv, Zap, Plus, ArrowRight, Clock, Eye, EyeOff, TrendingUp, ArrowUpRight, Activity, ShieldCheck, Server, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
@@ -46,10 +46,8 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Modern Balance Card Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 relative overflow-hidden bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 shadow-2xl group transition-all duration-500 hover:border-blue-500/30">
-          {/* Decorative Background Elements */}
           <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-blue-600/10 rounded-full blur-[80px] transition-all duration-700 group-hover:bg-blue-600/20"></div>
           <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-48 h-48 bg-indigo-600/10 rounded-full blur-[60px]"></div>
           
@@ -101,33 +99,53 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Secondary Stats Card */}
-        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 flex flex-col justify-between relative overflow-hidden hover:border-purple-500/30 transition-all duration-500">
-           <div className="absolute top-0 right-0 p-4 opacity-5">
-              <Zap className="w-32 h-32 text-amber-500" />
+        {/* Smart Intelligence Hub */}
+        <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] p-8 flex flex-col justify-between relative overflow-hidden hover:border-blue-500/30 transition-all duration-500 group">
+           <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+              <ShieldCheck className="w-32 h-32 text-blue-500" />
            </div>
-           <div className="text-left">
-              <p className="text-slate-400 font-bold text-sm mb-1 uppercase">Commission</p>
-              <h3 className="text-3xl font-black text-amber-500 font-mono">
-                ₦{showBalance ? (userProfile?.commissionBalance || 0).toLocaleString() : '••••'}
-              </h3>
-           </div>
-           <div className="mt-8 pt-8 border-t border-slate-800/50 text-left">
-              <p className="text-slate-400 font-bold text-sm mb-1 uppercase">Savings</p>
-              <h3 className="text-3xl font-black text-emerald-500 font-mono">
-                ₦{showBalance ? (userProfile?.savingsBalance || 0).toLocaleString() : '••••'}
-              </h3>
-              <button 
-                onClick={() => navigate('/kolo')}
-                className="mt-4 text-xs font-bold text-blue-400 flex items-center hover:text-blue-300 transition-colors"
-              >
-                Manage Savings <ArrowRight className="w-3 h-3 ml-1" />
-              </button>
+           <div className="text-left space-y-6">
+              <div className="flex items-center justify-between">
+                <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Infra Health</p>
+                <div className="flex items-center text-emerald-500 text-[10px] font-black tracking-widest">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping mr-2"></div>
+                    ONLINE
+                </div>
+              </div>
+              
+              <div className="space-y-4">
+                  {[
+                      { icon: Server, label: 'Uplink Node', status: 'Stable', lat: '12ms' },
+                      { icon: Globe, label: 'Proxy Relay', status: 'Active', lat: '45ms' },
+                  ].map((node, i) => (
+                      <div key={i} className="flex items-center justify-between bg-slate-950/50 p-3 rounded-2xl border border-slate-800">
+                          <div className="flex items-center space-x-3">
+                              <node.icon className="w-4 h-4 text-blue-500" />
+                              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">{node.label}</span>
+                          </div>
+                          <div className="text-right">
+                              <p className="text-[9px] font-black text-emerald-400 leading-none">{node.status}</p>
+                              <p className="text-[8px] text-slate-600 mt-0.5">{node.lat}</p>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+
+              <div className="pt-4 border-t border-slate-800/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">System Pulse</span>
+                    <Activity className="w-3 h-3 text-blue-400" />
+                  </div>
+                  <div className="h-8 flex items-end gap-1 px-1">
+                      {[40, 70, 45, 90, 65, 80, 50, 85, 60, 75, 45, 95].map((h, i) => (
+                          <div key={i} className="flex-1 bg-blue-500/20 rounded-t-sm animate-pulse" style={{ height: `${h}%`, animationDelay: `${i * 0.1}s` }}></div>
+                      ))}
+                  </div>
+              </div>
            </div>
         </div>
       </div>
 
-      {/* Quick Links */}
       <div className="text-left">
         <div className="flex items-center justify-between mb-6 px-1">
           <h3 className="text-lg font-bold text-white flex items-center">
@@ -158,7 +176,6 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Recent Transactions */}
       <div className="bg-slate-900 border border-slate-800 rounded-[2.5rem] overflow-hidden shadow-xl text-left">
         <div className="p-8 border-b border-slate-800 flex justify-between items-center">
             <h3 className="text-xl font-bold text-white">Recent Activity</h3>

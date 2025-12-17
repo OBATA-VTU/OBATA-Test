@@ -64,6 +64,14 @@ app.get('/api/terminal/services', async (_req: Request, res: Response) => {
   res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Catalog Registry Blocked", details: result.error });
 });
 
+// --- INQUIRY ROUTES (Bank Resolution / Status) ---
+
+app.post('/api/terminal/inquiry', async (req: Request, res: Response) => {
+  // Supports both { bankCode, acctNum } and { reference } as per docs
+  const result = await callInlomax('/transaction', req.body, 'POST');
+  res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Inquiry Node Fault", details: result.error });
+});
+
 // --- PURCHASE & VALIDATION ROUTES ---
 
 app.post('/api/terminal/purchase/airtime', async (req: Request, res: Response) => {
@@ -101,18 +109,18 @@ app.post('/api/terminal/validate/meter', async (req: Request, res: Response) => 
   res.status(result.status).json(result.success ? result.data : { status: 'error', message: "Meter Validation Node Fault", details: result.error });
 });
 
-// --- PAYSTACK ROUTES (FOR COMPLETENESS) ---
+// --- PAYSTACK ROUTES ---
 
 app.get('/api/terminal/banks', async (_req: Request, res: Response) => {
     const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY || process.env.VITE_PAYSTACK_SECRET_KEY || '';
     try {
-        if (!PAYSTACK_SECRET) return res.status(500).json({ status: 'error', message: "Secret Key Missing" });
+        if (!PAYSTACK_SECRET) return res.status(500).json({ status: 'error', message: "Infrastructure Fault: Secret Key Missing" });
         const response = await axios.get('https://api.paystack.co/bank', {
             headers: { 'Authorization': `Bearer ${PAYSTACK_SECRET}` }
         });
         res.json({ status: 'success', data: response.data.data });
     } catch (error: any) {
-        res.status(500).json({ status: 'error', message: "Gateway Fail" });
+        res.status(500).json({ status: 'error', message: "Gateway Communication Timeout" });
     }
 });
 

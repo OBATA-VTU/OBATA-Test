@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
-import { verifyPayment } from '../services/api';
+// Fixed: Module '"../services/api"' has no exported member 'verifyPayment'. Using verifyTransaction instead.
+import { verifyTransaction } from '../services/api';
 
 export const PaymentVerificationPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -17,7 +18,8 @@ export const PaymentVerificationPage: React.FC = () => {
       
       const checkPayment = async () => {
           try {
-              const res = await verifyPayment(reference);
+              // Fixed: Using verifyTransaction instead of verifyPayment
+              const res = await verifyTransaction(reference);
               if (res.success && res.data.status === 'success') {
                   setStatus('SUCCESS');
                   setTimeout(() => navigate('/dashboard'), 3000);

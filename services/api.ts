@@ -1,8 +1,7 @@
-
 import { ApiConfig, ApiResponse } from '../types';
 
-// Points to our local backend during testing
-const BACKEND_URL = ''; 
+// Points to our local backend proxy during development and production
+const BACKEND_URL = '/api'; 
 
 /**
  * Executes an API request with standard headers and error handling.
@@ -38,7 +37,7 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
       return {
           success: false,
           status: 0,
-          statusText: 'Client Error',
+          statusText: 'Gateway Timeout',
           data: { error: error.message },
           duration: 0,
           error: error.message
@@ -51,7 +50,7 @@ export const executeApiRequest = async (config: ApiConfig): Promise<ApiResponse>
  */
 export const checkInlomaxBalance = async () => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/admin/inlomax-balance`,
+        url: `${BACKEND_URL}/terminal/balance`,
         method: 'GET'
     });
 };
@@ -61,85 +60,102 @@ export const checkInlomaxBalance = async () => {
  */
 export const buyAirtime = async (network: string, amount: string | number, phone: string, requestId: string) => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/vtu/airtime`,
+        url: `${BACKEND_URL}/terminal/purchase/airtime`,
         method: 'POST',
-        body: { network, amount, mobile_number: phone, request_id: requestId }
+        body: { network, amount, mobileNumber: phone, requestId }
     });
 };
 
 /**
  * Initiates a data bundle purchase transaction.
  */
-export const buyData = async (planId: string, phone: string, requestId: string) => {
+export const buyData = async (serviceID: string, phone: string, requestId: string) => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/vtu/data`,
+        url: `${BACKEND_URL}/terminal/purchase/data`,
         method: 'POST',
-        body: { planId, mobile_number: phone, request_id: requestId }
+        body: { serviceID, mobileNumber: phone, requestId }
     });
 };
 
-// Fix: Add missing validateCable export
-export const validateCable = async (serviceID: string, iucNumber: string) => {
+/**
+ * Validates cable account (IUC).
+ */
+export const validateCable = async (serviceID: string, iucNum: string) => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/vtu/validate-cable`,
+        url: `${BACKEND_URL}/terminal/validate/cable`,
         method: 'POST',
-        body: { serviceID, iucNumber }
+        body: { serviceID, iucNum }
     });
 };
 
-// Fix: Add missing validateMeter export
-export const validateMeter = async (serviceID: string, meterNumber: string, meterType: string) => {
+/**
+ * Validates electricity meter.
+ */
+export const validateMeter = async (serviceID: string, meterNum: string, meterType: number) => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/vtu/validate-meter`,
+        url: `${BACKEND_URL}/terminal/validate/meter`,
         method: 'POST',
-        body: { serviceID, meterNumber, meterType }
+        body: { serviceID, meterNum, meterType }
     });
 };
 
-// Fix: Add missing buyCable export
-export const buyCable = async (planId: string, iuc: string, requestId: string) => {
+/**
+ * Initiates a cable TV purchase transaction.
+ */
+export const buyCable = async (serviceID: string, iucNum: string, requestId: string) => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/vtu/cable`,
+        url: `${BACKEND_URL}/terminal/purchase/cable`,
         method: 'POST',
-        body: { planId, iuc, request_id: requestId }
+        body: { serviceID, iucNum, requestId }
     });
 };
 
-// Fix: Add missing payElectricity export
-export const payElectricity = async (discoId: string, meterNumber: string, amount: string | number, meterType: string, requestId: string) => {
+/**
+ * Initiates an electricity bill payment.
+ */
+export const payElectricity = async (serviceID: string, meterNum: string, amount: string | number, meterType: number, requestId: string) => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/vtu/electricity`,
+        url: `${BACKEND_URL}/terminal/purchase/electricity`,
         method: 'POST',
-        body: { discoId, meterNumber, amount, meterType, request_id: requestId }
+        body: { serviceID, meterNum, amount, meterType, requestId }
     });
 };
 
-// Fix: Add missing getBanks export
+/**
+ * Fetches available banks from Paystack bridge.
+ */
 export const getBanks = async () => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/finance/banks`,
+        url: `${BACKEND_URL}/terminal/banks`,
         method: 'GET'
     });
 };
 
-// Fix: Add missing resolveBankAccount export
-export const resolveBankAccount = async (accountNumber: string, bankCode: string) => {
+/**
+ * Resolves a bank account name.
+ */
+export const resolveBankAccount = async (acctNum: string, bankCode: string) => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/finance/resolve-bank`,
+        url: `${BACKEND_URL}/terminal/inquiry`,
         method: 'POST',
-        body: { accountNumber, bankCode }
+        body: { acctNum, bankCode }
     });
 };
 
-// Fix: Add missing verifyPayment export
-export const verifyPayment = async (reference: string) => {
+/**
+ * Verifies a transaction status via Inlomax inquiry node.
+ */
+export const verifyTransaction = async (reference: string) => {
     return executeApiRequest({
-        url: `${BACKEND_URL}/api/finance/verify?reference=${reference}`,
-        method: 'GET'
+        url: `${BACKEND_URL}/terminal/inquiry`,
+        method: 'POST',
+        body: { reference }
     });
 };
 
-// Fix: Add missing uploadImageToImgBB export
+/**
+ * Image upload utility.
+ */
 export const uploadImageToImgBB = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('image', file);

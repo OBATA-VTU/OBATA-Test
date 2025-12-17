@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
+    }
+
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && (
+        isAdmin() || (
+          request.auth.uid == uid && 
+          !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['walletBalance', 'commissionBalance', 'savingsBalance', 'role', 'isAdmin', 'uid', 'email'])
+        )
+      );
+    }
+
+    match /transactions/{id} {
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if signedIn() && (request.resource.data.userId == request.auth.uid || isAdmin());
+      allow update, delete: if isAdmin();
+    }
+
+    match /synced_services/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /pricing/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    match /notifications/{id} {
+      allow read: if signedIn() && (
+        resource.data.target == 'ALL' || 
+        resource.data.target == request.auth.uid || 
+        isAdmin()
+      );
+      allow write: if isAdmin();
+    }
+
+    match /settings/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
