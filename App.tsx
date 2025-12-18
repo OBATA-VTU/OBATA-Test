@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { LandingPage } from './components/LandingPage';
@@ -39,6 +39,8 @@ const AppRoutes = () => {
       {/* Protected Dashboard Routes */}
       <Route element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />
+        {/* Support both base path and specific service paths to prevent redirects */}
+        <Route path="/services" element={<Navigate to="/services/airtime" replace />} />
         <Route path="/services/:serviceType" element={<ServicesPage />} />
         <Route path="/wallet" element={<FundWallet />} />
         <Route path="/transfer" element={<P2PTransfer />} />

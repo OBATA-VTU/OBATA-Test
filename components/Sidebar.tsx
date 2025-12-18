@@ -13,14 +13,14 @@ export const Sidebar: React.FC = () => {
   const links = [
     { name: 'Home View', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Add Money', path: '/wallet', icon: CreditCard },
-    { name: 'Transfer Cash', path: '/transfer', icon: Send },
-    { name: 'Our Services', path: '/services', icon: Smartphone },
+    { name: 'Send Money', path: '/transfer', icon: Send },
+    { name: 'Buy Services', path: '/services/airtime', icon: Smartphone },
     { name: 'My History', path: '/history', icon: History },
     { name: 'My Account', path: '/profile', icon: User },
   ];
 
   if (userProfile?.role === 'admin') {
-      links.push({ name: 'Control Panel', path: '/admin', icon: Shield });
+      links.push({ name: 'Control Center', path: '/admin', icon: Shield });
   }
 
   return (
@@ -44,7 +44,7 @@ export const Sidebar: React.FC = () => {
 
         <nav className="p-6 space-y-3">
           {links.map((link) => {
-            const isActive = location.pathname.startsWith(link.path);
+            const isActive = location.pathname.startsWith(link.path.split('/')[1]);
             return (
               <Link
                 key={link.path}
@@ -68,7 +68,7 @@ export const Sidebar: React.FC = () => {
              <div className="bg-blue-500/10 p-2 rounded-lg text-blue-500"><HelpCircle className="w-5 h-5" /></div>
              <div>
                 <p className="text-[10px] font-black text-white uppercase">Need Help?</p>
-                <p className="text-[9px] text-slate-500 font-bold">Contact Support</p>
+                <p className="text-[9px] text-slate-500 font-bold">Contact Admin</p>
              </div>
           </div>
           <button 
@@ -76,7 +76,7 @@ export const Sidebar: React.FC = () => {
             className="flex items-center w-full px-5 py-4 text-rose-500 hover:bg-rose-500/10 rounded-2xl transition-colors font-bold text-[12px] uppercase tracking-widest"
           >
             <LogOut className="w-5 h-5 mr-4" />
-            Logout Session
+            Logout
           </button>
         </div>
       </aside>

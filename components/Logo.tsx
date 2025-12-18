@@ -9,8 +9,9 @@ interface LogoProps {
 export const Logo: React.FC<LogoProps> = ({ className = "h-10 w-10", showRing = true }) => {
   const [imgError, setImgError] = useState(false);
 
-  // Using a cache-busting timestamp to ensure the logo refreshes if the user uploads a new one
-  const logoSrc = `/logo.png?v=${Date.now()}`;
+  // We use an absolute path to the public directory
+  // Adding a version query ensures the browser doesn't cache an old version if you replace the file
+  const logoSrc = `/logo.png?v=1`;
 
   const LogoContent = () => {
     if (imgError) {
