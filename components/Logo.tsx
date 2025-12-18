@@ -7,6 +7,7 @@ interface LogoProps {
 
 export const Logo: React.FC<LogoProps> = ({ className = "h-10 w-10" }) => {
   const [imgError, setImgError] = useState(false);
+  // Use a unique version parameter to bypass cache during updates
   const logoSrc = `/logo.png?v=${Date.now()}`;
 
   if (imgError) {
