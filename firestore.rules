@@ -2,27 +2,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Global helper for authentication
+    // Global helper: Is the user logged in?
     function signedIn() {
       return request.auth != null;
     }
 
-    // 1. Users Collection
-    match /users/{uid} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.auth.uid == uid;
-      allow update: if signedIn() && (request.auth.uid == uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-    }
-
-    // 2. Transactions Collection
-    match /transactions/{id} {
-      allow read, list: if signedIn() && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
-      allow create: if signedIn();
-      allow update, delete: if signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
-    }
-
-    // 3. Service Sync Hub - ABSOLUTE ACCESS FOR TESTING
-    // Removed all admin restrictions for these specific paths to fix the permission block
+    // Node Sync & Pricing Collections
+    // Explicitly permissive for authenticated users to ensure sync works during testing
     match /synced_services/{id} {
       allow read, write: if signedIn();
     }
@@ -35,13 +21,26 @@ service cloud.firestore {
       allow read, write: if signedIn();
     }
 
-    // 4. System Settings & Assets
+    // Users & Metadata
+    match /users/{uid} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && (request.auth.uid == uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+    }
+
+    // Financial Records
+    match /transactions/{id} {
+      allow read, list: if signedIn() && (resource.data.userId == request.auth.uid || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true);
+      allow create: if signedIn();
+      allow update, delete: if signedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+
+    // System Config
     match /settings/{id} {
       allow read: if true;
       allow write: if signedIn();
     }
 
-    // 5. Notifications
     match /notifications/{id} {
       allow read, list: if signedIn();
       allow write: if signedIn();
