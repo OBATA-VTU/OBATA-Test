@@ -9,19 +9,22 @@ interface LogoProps {
 export const Logo: React.FC<LogoProps> = ({ className = "h-10 w-10", showRing = true }) => {
   const [imgError, setImgError] = useState(false);
 
+  // Using a cache-busting timestamp to ensure the logo refreshes if the user uploads a new one
+  const logoSrc = `/logo.png?v=${Date.now()}`;
+
   const LogoContent = () => {
     if (imgError) {
       return (
-        <div className={`flex items-center justify-center bg-gradient-to-br from-blue-600 to-amber-500 rounded-full text-white shadow-lg ${className}`}>
+        <div className={`flex items-center justify-center bg-gradient-to-br from-blue-600 to-blue-400 rounded-2xl text-white shadow-lg ${className}`}>
           <Zap className="w-3/5 h-3/5 fill-current" />
         </div>
       );
     }
     return (
       <img 
-        src="/logo.png" 
+        src={logoSrc} 
         alt="OBATA VTU" 
-        className={`object-contain rounded-full bg-white p-0.5 ${className}`} 
+        className={`object-contain rounded-2xl bg-white p-1 shadow-inner ${className}`} 
         onError={() => setImgError(true)}
       />
     );
@@ -30,7 +33,7 @@ export const Logo: React.FC<LogoProps> = ({ className = "h-10 w-10", showRing = 
   if (showRing) {
     return (
       <div className="relative group">
-         <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-amber-500 rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+         <div className="absolute -inset-1 bg-blue-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-1000"></div>
          <div className="relative">
             <LogoContent />
          </div>
